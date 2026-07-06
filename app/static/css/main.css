@@ -205,20 +205,49 @@ label { display: block; font-weight: 600; margin-bottom: 6px; }
 .flash--info { background: var(--gold-soft); color: var(--ink); }
 .flash-stack { max-width: var(--container); margin: 16px auto 0; padding: 0 24px; }
 
-/* ----------------------------- announcement ------------------------------ */
-.announcement {
-  background: var(--gold-soft);
-  color: var(--ink);
-  text-align: center;
-  padding: 10px 48px 10px 24px;
-  font-size: 15px;
-  font-weight: 600;
+/* -------------------------- hero announcement ---------------------------- */
+.hero-announcement {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  margin: 0 0 22px;
+  padding: 12px 44px 12px 18px;
   position: relative;
+  background: linear-gradient(100deg, var(--gold-soft) 0%, #FBD9A6 100%);
+  border: 1px solid rgba(122, 46, 98, 0.14);
+  border-radius: 16px;
+  color: var(--ink);
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  box-shadow: 0 10px 24px rgba(224, 138, 109, 0.22);
 }
-.announcement button {
-  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-  background: none; border: none; font-size: 18px; cursor: pointer; color: var(--ink);
-  padding: 4px 8px;
+.hero-announcement__spark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--horizon, var(--gold));
+  color: #fff;
+  font-size: 15px;
+  animation: spark-pulse 2.6s ease-in-out infinite;
+}
+.hero-announcement__text { min-width: 0; }
+.hero-announcement__close {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; font-size: 20px; line-height: 1;
+  cursor: pointer; color: var(--ink); padding: 4px 8px; border-radius: 8px;
+  opacity: 0.6; transition: opacity 150ms ease, background 150ms ease;
+}
+.hero-announcement__close:hover { opacity: 1; background: rgba(43, 38, 34, 0.08); }
+@keyframes spark-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-announcement__spark { animation: none; }
 }
 
 /* --------------------------------- nav ----------------------------------- */
@@ -476,6 +505,14 @@ details.faq-item .answer { padding: 0 22px 20px; }
 }
 .heart-btn.on { color: var(--error); }
 
+.quote-gate {
+  margin-top: 40px; padding: 28px; border-radius: 16px;
+  background: var(--gold-soft); border: 1px solid rgba(122, 46, 98, 0.12);
+  max-width: 640px;
+}
+.quote-gate p { margin: 0 0 18px; }
+.quote-gate__actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+
 /* -------------------------------- footer ---------------------------------- */
 .site-footer { background: var(--plum); color: var(--dawn-ivory); padding: 56px 0 32px; margin-top: 64px; }
 .site-footer a { color: var(--dawn-ivory); text-decoration: none; }
@@ -558,6 +595,27 @@ details.faq-item .answer { padding: 0 22px 20px; }
 
 .admin-panel { background: #fff; border-radius: 12px; padding: 22px; box-shadow: var(--shadow-card); margin-bottom: 24px; }
 .admin-panel h2 { font-size: 19px; margin-top: 0; }
+
+/* show-all toggle beneath collapsible tables */
+.show-all-btn { margin: -12px 0 24px; }
+
+/* collapsible FAQ rows in the studio */
+details.faq-item { padding: 0; margin-bottom: 12px; }
+details.faq-item > summary {
+  list-style: none; cursor: pointer; padding: 16px 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  font-weight: 700;
+}
+details.faq-item > summary::-webkit-details-marker { display: none; }
+.faq-item__q { min-width: 0; }
+.faq-item__hint {
+  flex: none; font-size: 13px; font-weight: 700; color: var(--plum);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+details.faq-item[open] > summary { border-bottom: 1px solid var(--ivory-deep); }
+details.faq-item[open] > summary .faq-item__hint::after { content: " \2212"; }
+details.faq-item:not([open]) > summary .faq-item__hint::after { content: " +"; }
+details.faq-item > form { padding: 0 20px 20px; }
 .form-row { display: grid; gap: 16px; }
 @media (min-width: 640px) { .form-row { grid-template-columns: 1fr 1fr; } }
 .cover-preview { max-width: 160px; border-radius: 10px; margin-top: 10px; aspect-ratio: 4/5; object-fit: cover; }

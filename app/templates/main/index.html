@@ -5,6 +5,13 @@
 <section class="hero">
   <div class="container hero-grid">
     <div>
+      {% if site.announcement_text %}
+      <div class="hero-announcement" data-hash="{{ site.announcement_text|length }}" role="region" aria-label="Announcement" data-rise="1">
+        <span class="hero-announcement__spark" aria-hidden="true">&#10022;</span>
+        <span class="hero-announcement__text">{{ site.announcement_text }}</span>
+        <button type="button" class="hero-announcement__close" aria-label="Dismiss announcement">&times;</button>
+      </div>
+      {% endif %}
       <p class="eyebrow" data-rise="1">A new chapter starts quietly</p>
       <h1 data-rise="2">Wherever you're starting from &mdash; even here &mdash; this is where it turns.</h1>
       <hr class="horizon-rule" data-rise="3">

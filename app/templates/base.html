@@ -13,20 +13,13 @@
   {% block head %}{% endblock %}
 </head>
 <body>
-  {% if site.announcement_text %}
-  <div class="announcement" data-hash="{{ site.announcement_text|length }}" role="region" aria-label="Announcement">
-    {{ site.announcement_text }}
-    <button type="button" aria-label="Dismiss announcement">&times;</button>
-  </div>
-  {% endif %}
-
   <header class="site-header">
     <nav class="nav" aria-label="Main">
       <a class="nav-brand" href="{{ url_for('main.index') }}">{{ site.site_title }}</a>
       <div class="nav-links">
         <a href="{{ url_for('main.courses') }}" {% if request.path.startswith('/courses') %}aria-current="page"{% endif %}>Courses &amp; Guides</a>
         <a href="{{ url_for('main.about') }}" {% if request.path == '/about' %}aria-current="page"{% endif %}>My story</a>
-        <a href="{{ url_for('main.quotes') }}" {% if request.path == '/quotes' %}aria-current="page"{% endif %}>Daily words</a>
+        <a href="{{ url_for('main.quotes') }}" {% if request.path == '/quotes' %}aria-current="page"{% endif %}>Daily quotes</a>
         <a href="{{ url_for('main.faq') }}" {% if request.path == '/faq' %}aria-current="page"{% endif %}>FAQ</a>
         {% if current_user.is_authenticated %}
           <a href="{{ url_for('main.account') }}" {% if request.path == '/account' %}aria-current="page"{% endif %}>My space</a>
@@ -44,7 +37,7 @@
     <div class="nav-drawer" id="nav-drawer">
       <a href="{{ url_for('main.courses') }}">Courses &amp; Guides</a>
       <a href="{{ url_for('main.about') }}">My story</a>
-      <a href="{{ url_for('main.quotes') }}">Daily words</a>
+      <a href="{{ url_for('main.quotes') }}">Daily quotes</a>
       <a href="{{ url_for('main.faq') }}">FAQ</a>
       {% if current_user.is_authenticated %}
         <a href="{{ url_for('main.account') }}">My space</a>
@@ -82,7 +75,7 @@
         <div class="footer-links">
           <a href="{{ url_for('main.courses') }}">Courses &amp; Guides</a>
           <a href="{{ url_for('main.about') }}">My story</a>
-          <a href="{{ url_for('main.quotes') }}">Daily words</a>
+          <a href="{{ url_for('main.quotes') }}">Daily quotes</a>
           <a href="{{ url_for('main.contact') }}">Contact</a>
           {% if site.instagram_url %}<a href="{{ site.instagram_url }}" rel="noopener">Instagram</a>{% endif %}
         </div>

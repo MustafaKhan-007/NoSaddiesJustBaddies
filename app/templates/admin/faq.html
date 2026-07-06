@@ -24,9 +24,14 @@
   </form>
 </div>
 
+<h2 style="margin-top: 32px;">All questions ({{ items|length }})</h2>
 {% for item in items %}
-<div class="admin-panel">
-  <form method="post" action="{{ url_for('admin.faq_save', item_id=item.id) }}">
+<details class="admin-panel faq-item">
+  <summary>
+    <span class="faq-item__q">{{ item.question }}</span>
+    <span class="faq-item__hint">Edit</span>
+  </summary>
+  <form method="post" action="{{ url_for('admin.faq_save', item_id=item.id) }}" style="margin-top: 16px;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label>Question</label>
@@ -47,7 +52,7 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="btn btn--danger btn--sm" type="submit">Delete</button>
   </form>
-</div>
+</details>
 {% else %}
 <p>No FAQ items yet.</p>
 {% endfor %}

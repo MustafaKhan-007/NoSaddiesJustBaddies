@@ -96,10 +96,27 @@ class ProdConfig(Config):
                 "Refusing to start in production. Missing/placeholder env vars: "
                 + ", ".join(missing)
             )
+        # A SQLite database in production lives on an ephemeral disk (wiped on
+        # every restart/deploy), which silently loses the owner account, orders,
+        # etc. Force a real, persistent database.
+        if cls.SQLALCHEMY_DATABASE_URI.startswith("sqlite"):
+            raise RuntimeError(
+                "Refusing to start in production with a SQLite database — it is "
+                "not persistent. Attach a managed Postgres database and set "
+                "DATABASE_URL to its connection string."
+            )
 
 
 def get_config():
-    env = os.environ.get("APP_ENV", "development").lower()
+    env = os.environ.get("APP_ENV", "").lower()
+    # Render sets RENDER=true on every service. If APP_ENV wasn't set explicitly
+    # we still force production there, so the app uses the managed (persistent)
+    # Postgres via DATABASE_URL instead of ephemeral SQLite — otherwise the disk
+    # is wiped on every restart/deploy and the owner account "resets".
+    if not env and os.environ.get("RENDER"):
+        env = "production"
+    if not env:
+        env = "development"
     if env == "production":
         ProdConfig.validate()
         return ProdConfig

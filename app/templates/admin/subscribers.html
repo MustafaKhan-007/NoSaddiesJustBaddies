@@ -7,7 +7,7 @@
   <a class="btn btn--secondary btn--sm" href="{{ url_for('admin.subscribers_export') }}">Export CSV</a>
 </div>
 
-<table class="admin-table">
+<table class="admin-table" data-collapsible="10">
   <thead><tr><th>Email</th><th>Joined</th><th></th></tr></thead>
   <tbody>
     {% for sub in items %}

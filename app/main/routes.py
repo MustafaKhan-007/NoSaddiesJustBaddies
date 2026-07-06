@@ -99,11 +99,21 @@ def about():
 
 @bp.route("/quotes")
 def quotes():
-    recent = quotes_service.recent_quotes(30)
-    favorite_ids = set()
-    if current_user.is_authenticated:
-        favorite_ids = {f.quote_id for f in current_user.favorites}
-    return render_template("main/quotes.html", recent=recent, today=date.today(),
+    today = date.today()
+    # Visitors see only today's quote. The archive is a member perk, and it
+    # only goes back as far as the day their account was created.
+    if not current_user.is_authenticated:
+        q = quotes_service.quote_for(today)
+        recent = [(today, q)] if q else []
+        return render_template("main/quotes.html", recent=recent, today=today,
+                               favorite_ids=set())
+
+    created = (current_user.created_at.date()
+               if current_user.created_at else today)
+    days = max(1, min((today - created).days + 1, 366))
+    recent = quotes_service.recent_quotes(days, today=today)
+    favorite_ids = {f.quote_id for f in current_user.favorites}
+    return render_template("main/quotes.html", recent=recent, today=today,
                            favorite_ids=favorite_ids)
 
 

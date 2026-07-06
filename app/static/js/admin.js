@@ -102,6 +102,37 @@
     };
   }
 
+  /* ---- collapsible long tables (show a few rows, expand on demand) ---- */
+  document.querySelectorAll("table[data-collapsible]").forEach(function (table) {
+    var limit = parseInt(table.getAttribute("data-collapsible"), 10) || 10;
+    var body = table.tBodies[0];
+    if (!body) return;
+    var rows = Array.prototype.slice.call(body.rows);
+    if (rows.length <= limit) return;
+
+    var hidden = rows.slice(limit);
+    var collapse = function () {
+      hidden.forEach(function (r) { r.hidden = true; });
+    };
+    collapse();
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn--secondary btn--sm show-all-btn";
+    var setLabel = function (expanded) {
+      btn.textContent = expanded
+        ? "Show fewer"
+        : "Show all " + rows.length;
+    };
+    setLabel(false);
+    btn.addEventListener("click", function () {
+      var expanded = hidden[0] && hidden[0].hidden;
+      hidden.forEach(function (r) { r.hidden = !expanded; });
+      setLabel(expanded);
+    });
+    table.insertAdjacentElement("afterend", btn);
+  });
+
   /* ---- dashboard charts (Chart.js from CDN) ---- */
   var dataEl = document.getElementById("dashboard-data");
   if (dataEl && window.Chart) {

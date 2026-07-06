@@ -71,8 +71,8 @@
     });
   }
 
-  /* ---- dismissible announcement bar (remembered for the session) ---- */
-  var bar = document.querySelector(".announcement");
+  /* ---- dismissible announcement (remembered for the session) ---- */
+  var bar = document.querySelector(".hero-announcement");
   if (bar) {
     var key = "fl-announcement-dismissed";
     try {

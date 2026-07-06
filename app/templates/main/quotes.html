@@ -1,11 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Daily words — {{ site.site_title }}{% endblock %}
+{% block title %}Daily quotes — {{ site.site_title }}{% endblock %}
 
 {% block content %}
 <section class="section">
   <div class="container">
-    <h1>Daily words</h1>
-    <p>The last 30 days of first light. Today's is gold.</p>
+    <h1>Daily quotes</h1>
+    {% if current_user.is_authenticated %}
+    <p>Every day since you joined, gathered in one place. Today's is gold.</p>
+    {% else %}
+    <p>Today's first light. Sign in to unlock your own growing archive.</p>
+    {% endif %}
 
     <div class="grid grid--3" style="margin-top: 40px;">
       {% for day, quote in recent %}
@@ -29,9 +33,13 @@
     </div>
 
     {% if not current_user.is_authenticated %}
-    <p style="margin-top: 40px;">
-      <a class="btn--quiet" href="{{ url_for('auth.login') }}">Sign in to save the ones that land &rarr;</a>
-    </p>
+    <div class="quote-gate">
+      <p>Create a free account and every day's quote is saved for you from here on &mdash; plus you can heart the ones that land and keep a check-in streak.</p>
+      <div class="quote-gate__actions">
+        <a class="btn btn--primary" href="{{ url_for('auth.register') }}">Create a free account</a>
+        <a class="btn--quiet" href="{{ url_for('auth.login') }}">I already have one &rarr;</a>
+      </div>
+    </div>
     {% endif %}
   </div>
 </section>

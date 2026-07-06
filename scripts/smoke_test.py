@@ -21,7 +21,7 @@ os.environ["LEMONSQUEEZY_WEBHOOK_SECRET"] = "test-secret"
 from app import create_app
 from app.config import DevConfig
 from app.extensions import db
-from app.models import CheckIn, Order, Quote, QuotePin, Subscriber, User
+from app.models import CheckIn, Order, Quote, QuotePin, Subscriber, User, utcnow
 
 TMP_DB = Path(tempfile.mkdtemp()) / "smoke.db"
 
@@ -289,8 +289,21 @@ ok("Security headers present",
    h.get("X-Content-Type-Options") == "nosniff" and h.get("X-Frame-Options") == "DENY"
    and "Content-Security-Policy" in h)
 
-r = client.get("/quotes")
-ok("Quote archive renders 30 days", r.status_code == 200 and r.get_data(as_text=True).count("quote-mini") >= 30)
+# quotes archive: visitors see only today; members see back to their signup date
+anon = app.test_client()
+r = anon.get("/quotes")
+anon_body = r.get_data(as_text=True)
+ok("Visitor sees only today's quote + gate",
+   r.status_code == 200 and anon_body.count("quote-mini") == 1 and "Create a free account" in anon_body)
+
+with app.app_context():
+    member = User.query.filter_by(email="newperson@example.com").first()
+    member.created_at = utcnow() - timedelta(days=40)
+    db.session.commit()
+r = client.get("/quotes")  # client is signed in as newperson
+member_count = r.get_data(as_text=True).count("quote-mini")
+ok("Member archive goes back to signup date", r.status_code == 200 and 30 <= member_count <= 41,
+   f"got {member_count}")
 
 r = admin.get("/admin/quotes")
 ok("Admin quotes page (pins, preview tomorrow)", r.status_code == 200 and "Preview tomorrow" in r.get_data(as_text=True))
