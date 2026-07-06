@@ -11,10 +11,12 @@ from flask import (Response, abort, current_app, flash, redirect,
                    render_template, request, session, stream_with_context,
                    url_for)
 from flask_login import current_user
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import (FaqItem, Order, Page, Product, Quote, QuotePin,
-                      Subscriber, Testimonial, QUOTE_CATEGORIES)
+from ..models import (FaqItem, Order, Page, Product, Quote, QuoteFavorite,
+                      QuotePin, Subscriber, Testimonial, QUOTE_CATEGORIES)
 from ..services import quotes as quotes_service
 from ..services import stats
 from ..services.lemonsqueezy import sync_recent_orders
@@ -255,7 +257,10 @@ def product_delete(product_id):
 @admin_required
 def quotes():
     items = Quote.query.order_by(Quote.id.desc()).all()
-    fav_counts = {q.id: q.favorites.count() for q in items}
+    fav_counts = dict(
+        db.session.query(QuoteFavorite.quote_id, func.count(QuoteFavorite.id))
+        .group_by(QuoteFavorite.quote_id).all()
+    )
     pins = QuotePin.query.filter(QuotePin.date >= date.today()).order_by(QuotePin.date).all()
     tomorrow = date.today() + timedelta(days=1)
     return render_template("admin/quotes.html", quotes=items, fav_counts=fav_counts,
@@ -574,7 +579,8 @@ def _orders_query():
 @bp.route("/orders")
 @admin_required
 def orders():
-    items = _orders_query().order_by(Order.created_at.desc()).limit(500).all()
+    items = (_orders_query().options(joinedload(Order.product))
+             .order_by(Order.created_at.desc()).limit(500).all())
     products = Product.query.order_by(Product.title).all()
     return render_template("admin/orders.html", items=items, products=products)
 

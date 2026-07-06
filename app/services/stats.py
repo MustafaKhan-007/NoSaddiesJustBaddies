@@ -2,6 +2,7 @@
 from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 from ..extensions import db
 from ..models import CheckIn, Order, PageView, Product, Subscriber, User
@@ -126,7 +127,7 @@ def signups_by_week(weeks: int = 12) -> dict:
 
 
 def recent_orders(limit: int = 10, product_id: int | None = None):
-    return _product_filter(Order.query, product_id)\
+    return _product_filter(Order.query.options(joinedload(Order.product)), product_id)\
         .order_by(Order.created_at.desc()).limit(limit).all()
 
 
