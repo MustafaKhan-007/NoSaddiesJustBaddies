@@ -7,7 +7,7 @@
   <meta property="og:title" content="{{ product.meta_title or product.title }}">
   <meta property="og:description" content="{{ product.meta_description or product.promise or '' }}">
   {% if product.cover_url %}<meta property="og:image" content="{{ product.cover_url }}">{% endif %}
-  <meta property="og:url" content="{{ config.SITE_URL }}{{ request.path }}">
+  <meta property="og:url" content="{{ request.base_url }}">
 {% endblock %}
 
 {% block content %}

@@ -28,7 +28,7 @@ python -m venv .venv
 # Windows:  .venv\Scripts\activate     macOS/Linux:  source .venv/bin/activate
 pip install -r requirements.txt
 
-copy .env.example .env        # cp on macOS/Linux — then edit ADMIN_EMAIL at least
+copy .env.example .env        # cp on macOS/Linux (defaults work for local dev)
 
 # create the SQLite dev database (no DATABASE_URL needed locally)
 set FLASK_APP=app:create_app  # PowerShell: $env:FLASK_APP = "app:create_app"
@@ -50,11 +50,23 @@ running `flask run`.
 
 ### Environment variables
 
-See `.env.example` for the full annotated list. In production these are
-required (the app refuses to boot otherwise): `SECRET_KEY`, `DATABASE_URL`,
-`LEMONSQUEEZY_WEBHOOK_SECRET`, `MAIL_FROM`, `ADMIN_EMAIL`, `SITE_URL`, plus
-**one email transport** — either `BREVO_API_KEY` (HTTP API, works everywhere)
-or all four of `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`.
+See `.env.example` for the full annotated list. The set is deliberately tiny.
+In production only these are **required** (the app refuses to boot otherwise):
+
+- `DATABASE_URL` — the managed Postgres connection string.
+- `MAIL_FROM` — the verified "From" address for emails.
+- **one email transport** — either `BREVO_API_KEY` (HTTP API, works everywhere)
+  or all four of `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`.
+
+Everything else is optional or auto-managed:
+
+- `SECRET_KEY` — auto-generated and stored in the database if unset (still
+  honored if you provide one).
+- `APP_ENV` — auto-detected as production on Render.
+- `LEMONSQUEEZY_WEBHOOK_SECRET` / `LEMONSQUEEZY_API_KEY` — set these only when
+  wiring up payments. Until then the storefront works and webhooks are rejected.
+- Contact-form messages go to whoever owns the admin account (claimed at
+  `/setup`) — there's no separate admin-email variable.
 
 > **Render free tier note:** Render blocks outbound SMTP ports (25/465/587)
 > on free web services, so Gmail/any SMTP relay will time out there. Use
@@ -68,21 +80,19 @@ or all four of `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`.
 1. **API key** — LS dashboard → *Settings → API* → create a key →
    `LEMONSQUEEZY_API_KEY`. Used only by the dashboard "Sync with Lemon Squeezy"
    button (drift repair); day-to-day order data arrives via webhooks.
-2. **Store ID** — *Settings → Stores*; the number next to your store →
-   `LEMONSQUEEZY_STORE_ID`.
-3. **Webhook** — *Settings → Webhooks → "+"*:
+2. **Webhook** — *Settings → Webhooks → "+"*:
    - Callback URL: `https://<your-app>.onrender.com/webhooks/lemonsqueezy`
    - Signing secret: any long random string → also set it as
      `LEMONSQUEEZY_WEBHOOK_SECRET` on the server
    - Subscribe to: `order_created` and `order_refunded`
-4. **Per product** (in this site's admin → Products):
+3. **Per product** (in this site's admin → Products):
    - **Buy link**: LS product → *Share* → copy the checkout/buy link → paste
      into "Lemon Squeezy buy link". Buttons use `lemon.js`, so checkout opens
      as an overlay on your page (plain link if JS is off).
    - **Variant ID**: LS product → *Variants* tab → the variant's ID → paste
      into "Lemon Squeezy variant ID". This is how webhook orders are matched
      to the product for your dashboard stats.
-5. **PayPal** — enable it once in LS *Settings → Payment methods*; it appears
+4. **PayPal** — enable it once in LS *Settings → Payment methods*; it appears
    at checkout automatically, no code change.
 
 To test the webhook locally, send a signed request:

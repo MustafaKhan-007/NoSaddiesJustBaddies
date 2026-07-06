@@ -43,7 +43,6 @@ def upsert_order(ls_order_id: str, ls_variant_id: str | None, buyer_email: str,
 def sync_recent_orders() -> dict:
     """Fetch recent orders from the LS API and upsert. Returns a summary."""
     api_key = current_app.config["LEMONSQUEEZY_API_KEY"]
-    store_id = current_app.config["LEMONSQUEEZY_STORE_ID"]
     if not api_key:
         return {"ok": False, "error": "LEMONSQUEEZY_API_KEY is not configured."}
 
@@ -53,8 +52,6 @@ def sync_recent_orders() -> dict:
     }
     url = f"{API_BASE}/orders"
     params = {"page[size]": PAGE_SIZE, "sort": "-createdAt"}
-    if store_id:
-        params["filter[store_id]"] = store_id
 
     seen = 0
     try:

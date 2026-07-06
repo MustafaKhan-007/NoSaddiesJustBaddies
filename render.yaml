@@ -19,29 +19,15 @@ services:
         fromDatabase:
           name: first-light-db
           property: connectionString
-      - key: SECRET_KEY
-        sync: false
-      - key: SITE_URL
-        sync: false
-      - key: ADMIN_EMAIL
-        sync: false
-      - key: LEMONSQUEEZY_API_KEY
-        sync: false
-      - key: LEMONSQUEEZY_WEBHOOK_SECRET
-        sync: false
-      - key: LEMONSQUEEZY_STORE_ID
-        sync: false
+      # Email (required): Brevo HTTP API + the verified sender address.
       - key: BREVO_API_KEY
         sync: false
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASSWORD
-        sync: false
       - key: MAIL_FROM
+        sync: false
+      # Lemon Squeezy (optional: set when you wire up payments).
+      - key: LEMONSQUEEZY_WEBHOOK_SECRET
+        sync: false
+      - key: LEMONSQUEEZY_API_KEY
         sync: false
 
 databases:

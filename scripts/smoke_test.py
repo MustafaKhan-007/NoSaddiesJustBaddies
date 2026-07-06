@@ -15,7 +15,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-os.environ["ADMIN_EMAIL"] = "owner@example.com"
 os.environ["LEMONSQUEEZY_WEBHOOK_SECRET"] = "test-secret"
 
 from app import create_app
@@ -311,5 +310,26 @@ r = admin.get("/admin/orders")
 ok("Admin orders page", r.status_code == 200)
 r = admin.get("/admin/subscribers/export.csv")
 ok("Subscriber CSV export", r.status_code == 200 and "fan@example.com" in r.get_data(as_text=True))
+
+# --- 8. DB-backed SECRET_KEY (no env var needed) ---------------------------
+KEY_DB = Path(tempfile.mkdtemp()) / "key.db"
+
+
+class NoSecretConfig(TestConfig):
+    SQLALCHEMY_DATABASE_URI = f"sqlite:///{KEY_DB.as_posix()}"
+    SECRET_KEY = ""   # force the database-backed path
+
+
+ks = create_app(NoSecretConfig)
+with ks.app_context():
+    db.create_all()
+boot1 = create_app(NoSecretConfig)
+boot2 = create_app(NoSecretConfig)
+k1, k2 = boot1.config["SECRET_KEY"], boot2.config["SECRET_KEY"]
+ok("SECRET_KEY auto-generated when unset", bool(k1) and len(k1) >= 32)
+ok("SECRET_KEY stable across restarts", k1 == k2)
+with boot2.app_context():
+    from app.services.settings import all_settings
+    ok("Secret key never leaks into public settings", "_secret_key" not in all_settings())
 
 print(f"\nAll {PASS} checks passed.")

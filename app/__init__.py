@@ -27,12 +27,33 @@ CSP = (
 )
 
 
+def _ensure_secret_key(app):
+    """Use SECRET_KEY from config if set; otherwise fall back to a persistent
+    key stored in the database (generated once). Only touches the DB when no
+    key was provided, and degrades to a temporary key if the DB is unreachable."""
+    if app.config.get("SECRET_KEY"):
+        return
+    from .services.settings import get_or_create_secret_key
+    with app.app_context():
+        try:
+            app.config["SECRET_KEY"] = get_or_create_secret_key()
+        except Exception:
+            db.session.rollback()   # leave the session clean for e.g. `flask db upgrade`
+            import secrets
+            app.config["SECRET_KEY"] = secrets.token_hex(32)
+            logging.getLogger(__name__).warning(
+                "Could not load a persistent SECRET_KEY from the database "
+                "(is it migrated yet?); using a temporary key for this process."
+            )
+
+
 def create_app(config_class=None):
     app = Flask(__name__)
     app.config.from_object(config_class or get_config())
 
     db.init_app(app)
     migrate.init_app(app, db)
+    _ensure_secret_key(app)
     csrf.init_app(app)
     limiter.init_app(app)
 

@@ -148,9 +148,12 @@ def send_verification_code(to: str, code: str, purpose: str) -> bool:
 
 
 def send_contact_notification(name: str, email: str, body: str) -> bool:
-    admin = current_app.config["ADMIN_EMAIL"]
+    from ..models import User
+    owner = (User.query.filter_by(is_admin=True)
+             .filter(User.deleted_at.is_(None)).order_by(User.id).first())
+    admin = owner.email if owner else None
     if not admin:
-        log.warning("ADMIN_EMAIL not set; contact message stored but not emailed.")
+        log.warning("No owner account to notify; contact message stored but not emailed.")
         return False
     text = f"New message from the contact form.\n\nFrom: {name} <{email}>\n\n{body}"
     html = (

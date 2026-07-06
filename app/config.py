@@ -18,13 +18,13 @@ def _database_url() -> str:
 
 
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-not-secret")
+    # Optional: if unset, a persistent key is generated and stored in the
+    # database on first boot (see app factory), so it survives restarts
+    # without needing an env var.
+    SECRET_KEY = os.environ.get("SECRET_KEY", "").strip()
 
     SQLALCHEMY_DATABASE_URI = _database_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-    SITE_URL = os.environ.get("SITE_URL", "http://localhost:5000").rstrip("/")
-    ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "").strip().lower()
 
     # Sessions / auth
     SESSION_COOKIE_NAME = "firstlight_session"
@@ -47,10 +47,11 @@ class Config:
     SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
     MAIL_FROM = os.environ.get("MAIL_FROM", "First Light <hello@localhost>")
 
-    # Lemon Squeezy
+    # Lemon Squeezy (both optional: the storefront works before payments are
+    # wired. Webhooks are rejected until the secret is set; the "Sync" button
+    # needs the API key.)
     LEMONSQUEEZY_API_KEY = os.environ.get("LEMONSQUEEZY_API_KEY", "")
     LEMONSQUEEZY_WEBHOOK_SECRET = os.environ.get("LEMONSQUEEZY_WEBHOOK_SECRET", "")
-    LEMONSQUEEZY_STORE_ID = os.environ.get("LEMONSQUEEZY_STORE_ID", "")
 
     # Flask-Limiter: in-memory storage. Fine at this scale; counters reset on
     # deploy/restart (noted in README).
@@ -61,6 +62,8 @@ class DevConfig(Config):
     DEBUG = True
     SESSION_COOKIE_SECURE = False
     REMEMBER_COOKIE_SECURE = False
+    # Zero-config local dev: a fixed dev key unless one is provided.
+    SECRET_KEY = os.environ.get("SECRET_KEY", "").strip() or "dev-only-not-secret"
 
 
 class ProdConfig(Config):
@@ -69,24 +72,19 @@ class ProdConfig(Config):
     SESSION_COOKIE_SECURE = True
     REMEMBER_COOKIE_SECURE = True
 
-    #: env vars that must be present (and not left at a placeholder) in prod
+    #: the only env vars that must be present in prod (everything else is
+    #: optional or auto-managed)
     REQUIRED_ENV = (
-        "SECRET_KEY",
         "DATABASE_URL",
-        "LEMONSQUEEZY_WEBHOOK_SECRET",
         "MAIL_FROM",
-        "ADMIN_EMAIL",
-        "SITE_URL",
     )
     #: at least one email transport must be configured
     SMTP_ENV = ("SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD")
 
     @classmethod
     def validate(cls) -> None:
-        placeholders = {"", "change-me", "change-me-too", "dev-only-not-secret"}
-
         def unset(name):
-            return os.environ.get(name, "").strip() in placeholders
+            return os.environ.get(name, "").strip() == ""
 
         missing = [name for name in cls.REQUIRED_ENV if unset(name)]
         if unset("BREVO_API_KEY") and any(unset(name) for name in cls.SMTP_ENV):
