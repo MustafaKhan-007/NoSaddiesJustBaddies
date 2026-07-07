@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import CheckIn, Order, PageView, Product, Subscriber, User
+from ..models import ForumPost, Order, PageView, Product, Subscriber, User
 
 PAID_STATUSES = ("paid",)
 
@@ -56,8 +56,8 @@ def _window_sums(days: int = 30, product_id: int | None = None) -> dict:
 
 def dashboard_cards(product_id: int | None = None) -> dict:
     sums = _window_sums(30, product_id)
-    active_streak_users = db.session.query(func.count(func.distinct(CheckIn.user_id))).filter(
-        CheckIn.date == date.today()
+    posts_30d = db.session.query(func.count(ForumPost.id)).filter(
+        ForumPost.created_at >= _dt(date.today() - timedelta(days=29))
     ).scalar()
 
     def delta(cur, prev):
@@ -72,7 +72,7 @@ def dashboard_cards(product_id: int | None = None) -> dict:
         "orders_delta": delta(sums["orders"], sums["orders_prev"]),
         "subscribers": sums["subscribers"],
         "subscribers_delta": delta(sums["subscribers"], sums["subscribers_prev"]),
-        "active_streaks": active_streak_users,
+        "forum_posts": posts_30d,
     }
 
 

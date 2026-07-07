@@ -34,7 +34,7 @@
 
     {% if not current_user.is_authenticated %}
     <div class="quote-gate">
-      <p>Create a free account and every day's quote is saved for you from here on &mdash; plus you can heart the ones that land and keep a check-in streak.</p>
+      <p>Create a free account and every day's quote is saved for you from here on &mdash; plus you can heart the ones that land and join the community.</p>
       <div class="quote-gate__actions">
         <a class="btn btn--primary" href="{{ url_for('auth.register') }}">Create a free account</a>
         <a class="btn--quiet" href="{{ url_for('auth.login') }}">I already have one &rarr;</a>

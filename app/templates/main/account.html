@@ -7,30 +7,22 @@
     <h1>{{ greeting }}{% if current_user.first_name() %}, {{ current_user.first_name() }}{% endif %}.</h1>
 
     {% include "partials/quote_card.html" %}
-
-    {% if streak %}
-    <div class="grid grid--3" style="margin-top: 32px;">
-      <div class="card" style="padding: 24px; text-align: center;">
-        <p class="eyebrow" style="margin-bottom: 4px;">Current streak</p>
-        <p style="font-family: var(--font-display); font-size: 36px; font-weight: 600; color: var(--plum); margin: 0;">{{ streak.current }}</p>
-        <p style="color: var(--ink-soft); font-size: 14px; margin: 4px 0 0;">
-          {% if streak.current == 0 %}Streaks restart. So do people. Day 1 again &mdash; welcome back.{% else %}day{{ 's' if streak.current != 1 }} of showing up{% endif %}
-        </p>
-      </div>
-      <div class="card" style="padding: 24px; text-align: center;">
-        <p class="eyebrow" style="margin-bottom: 4px;">Longest streak</p>
-        <p style="font-family: var(--font-display); font-size: 36px; font-weight: 600; color: var(--plum); margin: 0;">{{ streak.longest }}</p>
-        <p style="color: var(--ink-soft); font-size: 14px; margin: 4px 0 0;">your best run so far</p>
-      </div>
-      <div class="card" style="padding: 24px; text-align: center;">
-        <p class="eyebrow" style="margin-bottom: 4px;">Total check-ins</p>
-        <p style="font-family: var(--font-display); font-size: 36px; font-weight: 600; color: var(--plum); margin: 0;">{{ streak.total }}</p>
-        <p style="color: var(--ink-soft); font-size: 14px; margin: 4px 0 0;">every one of them counts</p>
-      </div>
-    </div>
-    {% endif %}
   </div>
 </section>
+
+{% if recommended %}
+<section class="section">
+  <div class="container">
+    <h2>Picked for where you are</h2>
+    <p style="color: var(--ink-soft); margin-top: -6px;">Based on what you told us brings you here. Update it anytime in <a href="#settings">your settings</a>.</p>
+    <div class="grid grid--3" style="margin-top: 24px;">
+      {% for product in recommended %}
+        {% include "partials/product_card.html" %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
 
 <section class="section section--band">
   <div class="container">
@@ -77,21 +69,64 @@
         {% endfor %}
       </div>
     {% else %}
-      <p>When a line lands, tap the heart on the <a href="{{ url_for('main.quotes') }}">daily words page</a> and it'll live here.</p>
+      <p>When a line lands, tap the heart on the <a href="{{ url_for('main.quotes') }}">daily quotes page</a> and it'll live here.</p>
     {% endif %}
   </div>
 </section>
 
-<section class="section section--band">
+<section class="section section--band" id="settings">
   <div class="container" style="max-width: 560px;">
-    <h2>Profile</h2>
+    <h2>Your settings</h2>
+    {% if current_user.forum_banned %}
+      <div class="flash flash--error">Forum posting is paused for your account. You can still read the community.</div>
+    {% elif current_user.forum_warnings %}
+      <p class="field-help">Community reminder: {{ current_user.forum_warnings }} gentle warning{{ 's' if current_user.forum_warnings != 1 }} on file. Let's keep it kind.</p>
+    {% endif %}
     <form method="post" action="{{ url_for('main.update_profile') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="profile-preview">
+        <span class="avatar avatar--lg"{% if current_user.avatar_url %} style="background-image:url('{{ current_user.avatar_url }}')"{% endif %}>
+          {% if not current_user.avatar_url %}{{ current_user.initials() }}{% endif %}
+        </span>
+        <div>
+          <strong>{{ current_user.public_name() }}</strong>
+          <p class="field-help" style="margin: 2px 0 0;">This is how the community sees you (unless you post anonymously).</p>
+        </div>
+      </div>
       <div class="field">
-        <label for="display_name">What should we call you?</label>
+        <label for="display_name">Display name</label>
         <input type="text" id="display_name" name="display_name" maxlength="80"
                value="{{ current_user.display_name or '' }}" placeholder="Your first name is plenty">
       </div>
+      <div class="field">
+        <label for="avatar_url">Profile picture URL (https)</label>
+        <input type="url" id="avatar_url" name="avatar_url" maxlength="500"
+               value="{{ current_user.avatar_url or '' }}" placeholder="https://...">
+        <p class="field-help">Paste an image link (Instagram, Imgur, etc.). Leave blank to use your initials.</p>
+      </div>
+      <div class="field">
+        <label for="bio">A little about you</label>
+        <textarea id="bio" name="bio" rows="3" maxlength="400"
+                  placeholder="Optional — a sentence or two.">{{ current_user.bio or '' }}</textarea>
+      </div>
+      <fieldset class="intent-picker">
+        <legend>What brings you here?</legend>
+        <p class="field-help">Helps us recommend the right courses.</p>
+        <div class="intent-grid">
+          {% for intent in intents %}
+          <label class="intent-option">
+            <input type="checkbox" name="goals" value="{{ intent.key }}"
+                   {{ 'checked' if intent.key in user_goals }}>
+            <span>{{ intent.label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <label style="font-weight: 400; display: flex; gap: 8px; align-items: center; margin: 8px 0 20px;">
+        <input type="checkbox" name="default_anonymous" value="1" style="width: auto;"
+               {{ 'checked' if current_user.default_anonymous }}>
+        Post anonymously by default in the forums
+      </label>
       <button class="btn btn--primary" type="submit">Save</button>
     </form>
 
@@ -118,7 +153,7 @@
 
     <div style="margin-top: 48px;">
       <h3>Leaving?</h3>
-      <p class="field-help">Closing your account removes your check-ins and favorites from view. Your purchases stay safe with Lemon Squeezy.</p>
+      <p class="field-help">Closing your account removes your profile, favorites, and forum posts from view. Your purchases stay safe with Lemon Squeezy.</p>
       <form method="post" action="{{ url_for('main.delete_account') }}"
             data-confirm="Close your account? This can't be undone from here.">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

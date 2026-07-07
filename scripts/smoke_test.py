@@ -20,7 +20,8 @@ os.environ["LEMONSQUEEZY_WEBHOOK_SECRET"] = "test-secret"
 from app import create_app
 from app.config import DevConfig
 from app.extensions import db
-from app.models import CheckIn, Order, Quote, QuotePin, Subscriber, User, utcnow
+from app.models import (ForumCategory, ForumPost, Order, Quote, QuotePin,
+                        Subscriber, User, utcnow)
 
 TMP_DB = Path(tempfile.mkdtemp()) / "smoke.db"
 
@@ -220,28 +221,77 @@ ok("Dashboard filters by product", r.status_code == 200 and "Begin Again" in bod
 r = admin.get("/admin/?product=999")
 ok("Unknown product filter falls back to everything", r.status_code == 200)
 
-# --- 5. streak grace rule --------------------------------------------------------
+# --- 5. community forums + moderation + recommendations --------------------------
+today = date.today()
 with app.app_context():
-    from app.services.quotes import streak_info
-    user = User.query.filter_by(email="newperson@example.com").first()
-    today = date.today()
-    # 6 consecutive days, then a single missed day inside the window, then today
-    for offset in (0, 1, 2, 4, 5, 6, 7, 8):   # day -3 missed (rest day)
-        db.session.add(CheckIn(user_id=user.id, date=today - timedelta(days=offset)))
+    db.session.add(ForumCategory(slug="venting", name="The Vent",
+                                 description="Let it out.", sort_order=0))
     db.session.commit()
-    info = streak_info(user.id)
-ok("One missed day within 7 doesn't reset streak", info["current"] == 8, f"got {info['current']}")
 
+r = client.get("/forums/")
+ok("Forums index renders", r.status_code == 200 and "The Vent" in r.get_data(as_text=True))
+
+# member (client = newperson, verified + logged in) can post
+r = client.post("/forums/c/venting/new",
+                data={"title": "Rough day", "body": "Just needed to say it out loud."},
+                follow_redirects=True)
+ok("Member can create a forum post", "Rough day" in r.get_data(as_text=True))
+
+# profanity is blocked and earns a warning
+r = client.post("/forums/c/venting/new",
+                data={"title": "This is shit", "body": "ugh"}, follow_redirects=True)
 with app.app_context():
-    user2 = User(email="second@example.com")
-    db.session.add(user2)
-    db.session.flush()
-    # two missed days in a row = real break
-    for offset in (0, 3, 4):
-        db.session.add(CheckIn(user_id=user2.id, date=today - timedelta(days=offset)))
+    member = User.query.filter_by(email="newperson@example.com").first()
+    warn1 = member.forum_warnings
+    posts_after = ForumPost.query.count()
+ok("Profane post blocked + warning issued", warn1 == 1 and posts_after == 1,
+   f"warnings={warn1} posts={posts_after}")
+
+# anonymous posting hides the author name
+r = client.post("/forums/c/venting/new",
+                data={"title": "Quiet ask", "body": "Posting this anonymously.", "anonymous": "1"},
+                follow_redirects=True)
+ok("Anonymous post shows as Anonymous",
+   "Anonymous" in r.get_data(as_text=True) and "Quiet ask" in r.get_data(as_text=True))
+
+# likes toggle
+with app.app_context():
+    first_post = ForumPost.query.order_by(ForumPost.id).first()
+    pid = first_post.id
+r = client.post(f"/forums/p/{pid}/like", follow_redirects=True)
+ok("Like on a post is accepted", r.status_code == 200)
+r = client.post(f"/forums/p/{pid}/comment", data={"body": "Sending you strength."},
+                follow_redirects=True)
+ok("Comment posts to a thread", "Sending you strength." in r.get_data(as_text=True))
+
+# escalating profanity leads to a ban after the warning limit
+banclient = app.test_client()
+sent_codes.clear()
+banclient.post("/register", data={"email": "rude@example.com", "password": USER_PW})
+bcode = sent_codes[-1][1]
+banclient.post("/verify-email", data={"email": "rude@example.com", "code": bcode})
+for _ in range(3):
+    banclient.post("/forums/c/venting/new", data={"title": "fuck this", "body": "fuck"})
+with app.app_context():
+    rude = User.query.filter_by(email="rude@example.com").first()
+    banned = rude.forum_banned
+ok("Repeated profanity bans after 2 warnings", banned is True, f"banned={banned}")
+
+# recommendations match a member's stated intent to hidden course tags
+with app.app_context():
+    from app.models import Product
+    from app.services.recommend import recommend_products
+    p = Product.query.filter_by(slug="begin-again").first()
+    p.set_tags(["divorce", "starting-over"])
+    m = User.query.filter_by(email="newperson@example.com").first()
+    m.set_goals(["divorce"])
     db.session.commit()
-    info2 = streak_info(user2.id)
-ok("Two consecutive missed days do reset", info2["current"] == 1, f"got {info2['current']}")
+    recs = recommend_products(m)
+ok("Course recommended from matching intent tags",
+   any(x.slug == "begin-again" for x in recs), f"got {[x.slug for x in recs]}")
+
+r = admin.get("/admin/community")
+ok("Admin community moderation page", r.status_code == 200 and "rude@example.com" in r.get_data(as_text=True))
 
 # --- 6. quote pinning + bulk import dedupe ----------------------------------------
 with app.app_context():

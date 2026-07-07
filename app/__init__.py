@@ -75,18 +75,29 @@ def create_app(config_class=None):
     from .main import bp as main_bp
     from .admin import bp as admin_bp
     from .webhooks import bp as webhooks_bp
+    from .forums import bp as forums_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(webhooks_bp, url_prefix="/webhooks")
+    app.register_blueprint(forums_bp, url_prefix="/forums")
     csrf.exempt(webhooks_bp)  # webhook signature check replaces CSRF here
 
     # --- template globals / filters ------------------------------------------
+    from markupsafe import Markup, escape
+
     from .services.markdown import render_markdown
     from .services.settings import all_settings
 
     app.jinja_env.filters["markdown"] = render_markdown
+
+    def nl2br(value):
+        """Escape user text, then turn newlines into <br> for safe display."""
+        escaped = escape(value or "")
+        return Markup(str(escaped).replace("\n", "<br>\n"))
+
+    app.jinja_env.filters["nl2br"] = nl2br
 
     @app.context_processor
     def inject_globals():

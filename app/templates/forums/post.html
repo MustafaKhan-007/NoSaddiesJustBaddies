@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} — Community — {{ site.site_title }}{% endblock %}
+
+{% macro like_button(action_url, count, liked) %}
+  {% if current_user.is_authenticated %}
+  <form method="post" action="{{ action_url }}" class="like-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ request.path }}#comments">
+    <button class="heart-btn {{ 'on' if liked }}" type="submit" aria-label="Like">&#9829; <span>{{ count }}</span></button>
+  </form>
+  {% else %}
+  <span class="heart-btn" aria-hidden="true">&#9829; {{ count }}</span>
+  {% endif %}
+{% endmacro %}
+
+{% block content %}
+<section class="section">
+  <div class="container" style="max-width: 760px;">
+    <p class="eyebrow"><a href="{{ url_for('forums.category', slug=post.category.slug) }}">&larr; {{ post.category.name }}</a></p>
+
+    <article class="forum-post">
+      <h1>{{ post.title }}</h1>
+      <p class="post-row__meta">
+        <span class="avatar avatar--sm"{% if not post.anonymous and post.author.avatar_url %} style="background-image:url('{{ post.author.avatar_url }}')"{% endif %}>
+          {% if post.anonymous %}?{% elif not post.author.avatar_url %}{{ post.author.initials() }}{% endif %}
+        </span>
+        {{ post.display_author() }} &middot; {{ post.created_at.strftime('%b %d, %Y') }}
+      </p>
+      <div class="forum-body">{{ post.body|nl2br }}</div>
+      <div class="forum-actions">
+        {{ like_button(url_for('forums.like_post', post_id=post.id), post.like_count(), post.id in liked_posts) }}
+      </div>
+    </article>
+
+    <h2 id="comments">Comments ({{ comments|length }})</h2>
+
+    {% if current_user.is_authenticated and not current_user.forum_banned %}
+    <form method="post" action="{{ url_for('forums.create_comment', post_id=post.id) }}" class="comment-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field">
+        <label for="body" class="sr-only">Add a comment</label>
+        <textarea id="body" name="body" rows="3" required maxlength="4000" placeholder="Add something kind or helpful…"></textarea>
+      </div>
+      <label style="font-weight: 400; display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
+        <input type="checkbox" name="anonymous" value="1" style="width: auto;" {{ 'checked' if anon_default }}>
+        Comment anonymously
+      </label>
+      <button class="btn btn--primary btn--sm" type="submit">Comment</button>
+    </form>
+    {% elif current_user.is_authenticated and current_user.forum_banned %}
+    <div class="flash flash--error">Commenting is paused for your account.</div>
+    {% else %}
+    <p><a href="{{ url_for('auth.login', next=request.path) }}">Sign in</a> to comment.</p>
+    {% endif %}
+
+    <div class="comment-list">
+      {% for comment in comments %}
+      <div class="comment">
+        <div class="comment__head">
+          <span class="avatar avatar--sm"{% if not comment.anonymous and comment.author.avatar_url %} style="background-image:url('{{ comment.author.avatar_url }}')"{% endif %}>
+            {% if comment.anonymous %}?{% elif not comment.author.avatar_url %}{{ comment.author.initials() }}{% endif %}
+          </span>
+          <strong>{{ comment.display_author() }}</strong>
+          <span class="comment__date">{{ comment.created_at.strftime('%b %d, %Y') }}</span>
+        </div>
+        <div class="forum-body">{{ comment.body|nl2br }}</div>
+        <div class="forum-actions">
+          {{ like_button(url_for('forums.like_comment', comment_id=comment.id), comment.like_count(), comment.id in liked_comments) }}
+        </div>
+      </div>
+      {% else %}
+      <p>No comments yet. Kindness starts somewhere.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

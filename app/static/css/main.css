@@ -375,15 +375,6 @@ label { display: block; font-weight: 600; margin-bottom: 6px; }
 .quote-attribution { color: var(--ink-soft); font-size: 15px; font-weight: 600; }
 @media (min-width: 900px) { .quote-text { font-size: 28px; } }
 
-.checkin { margin-top: 24px; }
-.checkin-confirmed { font-weight: 700; color: var(--plum); }
-.dot-row { display: flex; justify-content: center; gap: 8px; margin-top: 12px; }
-.dot-row span {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--ivory-deep); border: 1px solid var(--rose-soft);
-}
-.dot-row span.hit { background: var(--gold); border-color: var(--gold); }
-
 /* ------------------------------ product card ------------------------------ */
 .card {
   background: var(--ivory-deep);
@@ -631,3 +622,77 @@ details.faq-item > form { padding: 0 20px 20px; }
   .hero [data-rise], .reveal { opacity: 1 !important; transform: none !important; }
   .card:hover, .btn:hover { transform: none !important; }
 }
+
+/* --------------------------- intent picker (onboarding) ------------------- */
+.intent-picker { border: none; padding: 0; margin: 8px 0 20px; }
+.intent-picker legend {
+  font-family: var(--font-display); font-size: 18px; font-weight: 600;
+  color: var(--plum); padding: 0; margin-bottom: 4px;
+}
+.intent-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
+@media (min-width: 620px) { .intent-grid { grid-template-columns: 1fr 1fr; } }
+.intent-option {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px; border: 1px solid var(--rose-soft);
+  border-radius: 14px; background: var(--ivory); cursor: pointer;
+  font-weight: 400; line-height: 1.35; transition: border-color 150ms ease, background 150ms ease;
+}
+.intent-option:hover { border-color: var(--plum); }
+.intent-option input { width: auto; margin-top: 3px; accent-color: var(--plum); }
+.intent-option:has(input:checked) {
+  border-color: var(--plum); background: var(--rose-wash, rgba(123, 108, 246, 0.08));
+}
+
+/* -------------------------------- avatars --------------------------------- */
+.avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--horizon); color: #fff;
+  font-family: var(--font-display); font-weight: 600; text-transform: uppercase;
+  background-size: cover; background-position: center; flex: none; overflow: hidden;
+}
+.avatar--sm { width: 30px; height: 30px; font-size: 12px; }
+.avatar--lg { width: 64px; height: 64px; font-size: 24px; }
+.profile-preview { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+
+/* ------------------------------- forums ----------------------------------- */
+.forum-cats { display: grid; gap: 14px; }
+.forum-cat {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 20px 22px; background: var(--ivory-deep); border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card); border-left: 5px solid var(--plum);
+  text-decoration: none; color: inherit; transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.forum-cat:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover, var(--shadow-card)); }
+.forum-cat h3 { margin: 0 0 4px; }
+.forum-cat p { margin: 0; color: var(--ink-soft); font-size: 15px; }
+.forum-cat__count { color: var(--ink-soft); font-size: 13px; white-space: nowrap; font-weight: 600; }
+
+.new-post { margin-top: 24px; }
+.new-post > summary { display: inline-flex; list-style: none; cursor: pointer; }
+.new-post > summary::-webkit-details-marker { display: none; }
+
+.post-list { display: grid; gap: 10px; }
+.post-row {
+  display: flex; gap: 16px; align-items: center; padding: 16px 18px;
+  background: var(--ivory-deep); border-radius: 14px; box-shadow: var(--shadow-card);
+  text-decoration: none; color: inherit; transition: transform 150ms ease;
+}
+.post-row:hover { transform: translateY(-2px); }
+.post-row__votes { font-weight: 700; color: var(--plum); white-space: nowrap; font-size: 14px; }
+.post-row__main h3 { margin: 0 0 2px; font-size: 18px; }
+.post-row__meta { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--ink-soft); font-size: 13px; }
+
+.forum-post { background: var(--ivory-deep); border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card); padding: 28px; margin: 16px 0 40px; }
+.forum-post h1 { margin-top: 0; }
+.forum-body { line-height: 1.6; margin: 16px 0; white-space: normal; }
+.forum-actions { margin-top: 12px; }
+
+.comment-form { margin: 16px 0 28px; }
+.comment-list { display: grid; gap: 16px; }
+.comment { background: var(--ivory-deep); border-radius: 14px; box-shadow: var(--shadow-card); padding: 18px 20px; }
+.comment__head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.comment__date { color: var(--ink-soft); font-size: 13px; margin-left: auto; }
+
+.like-form { display: inline-block; }
+.heart-btn span { font-weight: 600; }

@@ -8,12 +8,16 @@ this site never touches card data and stores no files).
 What's inside:
 
 - Full catalog with filterable shop, rich product pages, and overlay checkout
-- Daily motivational quote with deterministic rotation, pinning, and a
-  kind-by-design check-in streak system
+- Daily motivational quote with deterministic rotation and pinning
 - Email + password accounts with 6-digit email confirmation codes on
   registration, plus code-based password reset
+- Personalized onboarding ("what brings you here?") that quietly matches members
+  to courses via hidden, admin-only product tags
+- Member profiles: display name, avatar (by URL), short bio, default-anonymous toggle
+- Community forums (Reddit-style categories, posts, comments, likes) with a
+  kindness guard — profanity is blocked, warns twice, then pauses posting
 - Admin studio: dashboard with revenue charts, product/quote/testimonial/FAQ/page
-  management, subscriber & order CSV exports, site settings
+  management, community moderation, subscriber & order CSV exports, site settings
 - Lemon Squeezy webhook receiver (signed, idempotent) + manual API reconciliation
 
 ---
@@ -161,8 +165,21 @@ PY
 - Admin → Quotes lets her add, edit, deactivate, bulk-import
   (`text | author | category` per line, deduped with preview), pin a quote to a
   launch date, and preview tomorrow's pick.
-- Streaks are gentle by design: one missed day per rolling 7 is a "rest day"
-  and doesn't reset the streak.
+
+## 4b. Community & recommendations
+
+- New members pick from gentle "what brings you here?" intents at sign-up (and
+  can change them in their settings). Each intent maps to keyword tags.
+- Products carry hidden tags (Admin → product form → "Recommendation tags").
+  These never render on the site; they power the "picked for where you are"
+  shelf on the member's account by matching intents to tags.
+- Forums live under `/forums`: seeded categories, posts, single-level comments,
+  and one-per-member likes. Members may post/comment anonymously (per post, or
+  by default via their settings).
+- Kindness guard (`app/services/moderation.py`): profane content is blocked
+  (never stored), the author is warned twice, and the next offense pauses their
+  posting. Admin → Community shows recent posts (removable) and warned/paused
+  members (with a one-click "fresh start" to clear warnings).
 
 ## 5. Security notes
 

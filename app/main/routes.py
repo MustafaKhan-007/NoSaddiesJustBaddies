@@ -12,6 +12,7 @@ from ..models import (ContactMessage, FaqItem, Order, Page, Product, Quote,
                       QuoteFavorite, Subscriber, Testimonial, utcnow)
 from ..services import quotes as quotes_service
 from ..services.mailer import send_contact_notification
+from ..services.recommend import INTENTS, recommend_products, valid_intent_keys
 from . import bp
 
 log = logging.getLogger(__name__)
@@ -33,12 +34,10 @@ def _quote_context():
     """Everything the daily quote card needs."""
     today = date.today()
     quote = quotes_service.quote_for(today, count_view=True)
-    ctx = {"today_quote": quote, "today": today, "streak": None, "quote_favorited": False}
-    if current_user.is_authenticated:
-        ctx["streak"] = quotes_service.streak_info(current_user.id)
-        if quote:
-            ctx["quote_favorited"] = QuoteFavorite.query.filter_by(
-                user_id=current_user.id, quote_id=quote.id).first() is not None
+    ctx = {"today_quote": quote, "today": today, "quote_favorited": False}
+    if current_user.is_authenticated and quote:
+        ctx["quote_favorited"] = QuoteFavorite.query.filter_by(
+            user_id=current_user.id, quote_id=quote.id).first() is not None
     return ctx
 
 
@@ -130,13 +129,6 @@ def toggle_favorite(quote_id):
     return redirect(request.form.get("next") or url_for("main.quotes"))
 
 
-@bp.route("/checkin", methods=["POST"])
-@login_required
-def checkin():
-    quotes_service.check_in(current_user.id)
-    return redirect(request.form.get("next") or url_for("main.index") + "#today")
-
-
 @bp.route("/account")
 @login_required
 def account():
@@ -154,17 +146,28 @@ def account():
                  .filter(QuoteFavorite.user_id == current_user.id)
                  .order_by(QuoteFavorite.created_at.desc()).all())
     return render_template("main/account.html", greeting=greeting, orders=orders,
-                           favorites=favorites, **_quote_context())
+                           favorites=favorites, intents=INTENTS,
+                           user_goals=set(current_user.goals()),
+                           recommended=recommend_products(current_user),
+                           **_quote_context())
 
 
 @bp.route("/account/profile", methods=["POST"])
 @login_required
 def update_profile():
     name = (request.form.get("display_name") or "").strip()[:80]
+    bio = (request.form.get("bio") or "").strip()[:400]
+    avatar = (request.form.get("avatar_url") or "").strip()[:500]
+    if avatar and not avatar.lower().startswith(("http://", "https://")):
+        avatar = ""
     current_user.display_name = name or None
+    current_user.bio = bio or None
+    current_user.avatar_url = avatar or None
+    current_user.default_anonymous = request.form.get("default_anonymous") == "1"
+    current_user.set_goals(valid_intent_keys(request.form.getlist("goals")))
     db.session.commit()
     flash("Saved. Nice to meet you properly.", "success")
-    return redirect(url_for("main.account"))
+    return redirect(url_for("main.account") + "#settings")
 
 
 @bp.route("/account/password", methods=["POST"])

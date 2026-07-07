@@ -1,10 +1,15 @@
 """All SQLAlchemy models."""
+import json
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .extensions import db
+
+#: number of profanity warnings allowed before a forum ban (the ban lands on
+#: the next offense after this many warnings)
+FORUM_WARNING_LIMIT = 2
 
 
 def utcnow():
@@ -30,10 +35,18 @@ class User(UserMixin, db.Model):
     last_login_at = db.Column(db.DateTime)
     deleted_at = db.Column(db.DateTime)
 
+    # profile / personalization
+    avatar_url = db.Column(db.String(500))
+    bio = db.Column(db.String(400))
+    goals_json = db.Column(db.Text)          # JSON list of intent keys
+    default_anonymous = db.Column(db.Boolean, nullable=False, default=False)
+
+    # forum moderation
+    forum_warnings = db.Column(db.Integer, nullable=False, default=0)
+    forum_banned = db.Column(db.Boolean, nullable=False, default=False)
+
     codes = db.relationship("VerificationCode", backref="user", lazy="dynamic",
                             cascade="all, delete-orphan")
-    check_ins = db.relationship("CheckIn", backref="user", lazy="dynamic",
-                                cascade="all, delete-orphan")
     favorites = db.relationship("QuoteFavorite", backref="user", lazy="dynamic",
                                 cascade="all, delete-orphan")
 
@@ -57,6 +70,25 @@ class User(UserMixin, db.Model):
         if self.display_name:
             return self.display_name.split()[0]
         return None
+
+    def public_name(self):
+        return self.display_name or "Member"
+
+    def initials(self):
+        base = (self.display_name or self.email or "?").strip()
+        parts = base.split()
+        if len(parts) >= 2:
+            return (parts[0][0] + parts[1][0]).upper()
+        return base[0].upper()
+
+    def goals(self) -> list:
+        try:
+            return json.loads(self.goals_json) if self.goals_json else []
+        except ValueError:
+            return []
+
+    def set_goals(self, keys) -> None:
+        self.goals_json = json.dumps(list(keys)) if keys else None
 
 
 class VerificationCode(db.Model):
@@ -116,11 +148,24 @@ class Product(db.Model):
     meta_title = db.Column(db.String(160))
     meta_description = db.Column(db.String(200))
 
+    # hidden recommendation tags (never shown to customers)
+    tags_json = db.Column(db.Text)
+
     created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=utcnow, onupdate=utcnow)
 
     orders = db.relationship("Order", backref="product", lazy="dynamic")
     testimonials = db.relationship("Testimonial", backref="product", lazy="dynamic")
+
+    def tags(self) -> list:
+        try:
+            return json.loads(self.tags_json) if self.tags_json else []
+        except ValueError:
+            return []
+
+    def set_tags(self, tags) -> None:
+        cleaned = [t.strip().lower() for t in tags if t.strip()]
+        self.tags_json = json.dumps(cleaned) if cleaned else None
 
     def price_display(self):
         if self.price_cents is None:
@@ -187,15 +232,6 @@ class QuoteFavorite(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     quote_id = db.Column(db.Integer, db.ForeignKey("quotes.id"), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
-
-
-class CheckIn(db.Model):
-    __tablename__ = "check_ins"
-    __table_args__ = (db.UniqueConstraint("user_id", "date", name="uq_checkin_user_date"),)
-
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    date = db.Column(db.Date, nullable=False)
 
 
 class Order(db.Model):
@@ -286,3 +322,84 @@ class ContactMessage(db.Model):
     email = db.Column(db.String(255), nullable=False)
     body = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+
+# --- community forums --------------------------------------------------------
+
+class ForumCategory(db.Model):
+    __tablename__ = "forum_categories"
+
+    id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(60), unique=True, nullable=False)
+    name = db.Column(db.String(80), nullable=False)
+    description = db.Column(db.String(240), nullable=False, default="")
+    accent = db.Column(db.String(7))          # optional hex colour for the card
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+    posts = db.relationship("ForumPost", backref="category", lazy="dynamic",
+                            cascade="all, delete-orphan")
+
+
+class ForumPost(db.Model):
+    __tablename__ = "forum_posts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    category_id = db.Column(db.Integer, db.ForeignKey("forum_categories.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    title = db.Column(db.String(160), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    anonymous = db.Column(db.Boolean, nullable=False, default=False)
+    hidden = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+    author = db.relationship("User")
+    comments = db.relationship("ForumComment", backref="post", lazy="dynamic",
+                               cascade="all, delete-orphan")
+    likes = db.relationship("ForumPostLike", backref="post", lazy="dynamic",
+                            cascade="all, delete-orphan")
+
+    def display_author(self):
+        return "Anonymous" if self.anonymous else self.author.public_name()
+
+    def like_count(self):
+        return self.likes.count()
+
+
+class ForumComment(db.Model):
+    __tablename__ = "forum_comments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("forum_posts.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    anonymous = db.Column(db.Boolean, nullable=False, default=False)
+    hidden = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+    author = db.relationship("User")
+    likes = db.relationship("ForumCommentLike", backref="comment", lazy="dynamic",
+                            cascade="all, delete-orphan")
+
+    def display_author(self):
+        return "Anonymous" if self.anonymous else self.author.public_name()
+
+    def like_count(self):
+        return self.likes.count()
+
+
+class ForumPostLike(db.Model):
+    __tablename__ = "forum_post_likes"
+    __table_args__ = (db.UniqueConstraint("user_id", "post_id", name="uq_postlike_user_post"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    post_id = db.Column(db.Integer, db.ForeignKey("forum_posts.id"), nullable=False)
+
+
+class ForumCommentLike(db.Model):
+    __tablename__ = "forum_comment_likes"
+    __table_args__ = (db.UniqueConstraint("user_id", "comment_id", name="uq_commentlike_user_comment"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    comment_id = db.Column(db.Integer, db.ForeignKey("forum_comments.id"), nullable=False)

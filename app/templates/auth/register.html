@@ -6,7 +6,7 @@
   <div class="container auth-card" style="max-width: 460px;">
     <h1>Make yourself a space</h1>
     <hr class="horizon-rule horizon-rule--heading">
-    <p>Daily check-ins, streaks, and saved quotes — free, always.</p>
+    <p>Saved quotes, a kind community, and courses picked for where you are — free, always.</p>
     <form method="post" action="{{ url_for('auth.register') }}" style="margin-top: 24px;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="next" value="{{ next }}">
@@ -25,6 +25,21 @@
         </div>
         <p class="field-help" id="password-hint">At least 8 characters. A short sentence you'll remember works beautifully.</p>
       </div>
+
+      <fieldset class="intent-picker">
+        <legend>What brings you here?</legend>
+        <p class="field-help">Pick what fits — it just helps us point you to the right courses. You can change this anytime, or skip it.</p>
+        <div class="intent-grid">
+          {% for intent in intents %}
+          <label class="intent-option">
+            <input type="checkbox" name="goals" value="{{ intent.key }}"
+                   {{ 'checked' if intent.key in selected_goals }}>
+            <span>{{ intent.label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
       <button class="btn btn--primary btn--wide" type="submit">Create my account</button>
     </form>
     <p class="field-help" style="margin-top: 20px;">

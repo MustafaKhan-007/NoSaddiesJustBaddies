@@ -98,6 +98,21 @@
   </div>
 
   <div class="admin-panel">
+    <h2>Recommendation tags <span style="font-weight: 400; font-size: 13px; color: var(--ink-soft);">(hidden from customers)</span></h2>
+    <div class="field">
+      <label for="tags">Tags</label>
+      <input type="text" id="tags" name="tags" value="{{ product.tags()|join(', ') }}"
+             placeholder="e.g. divorce, confidence, starting-over">
+      <p class="field-help">
+        Comma-separated. These never appear on the site &mdash; they quietly power
+        the "picked for where you are" recommendations by matching what a member
+        told us during sign-up. Useful words: <em>content, creator, divorce, custody,
+        co-parenting, confidence, grief, career, money, habits, routine</em>.
+      </p>
+    </div>
+  </div>
+
+  <div class="admin-panel">
     <h2>Media</h2>
     <div class="field">
       <label for="cover_url">Cover image URL (https)</label>

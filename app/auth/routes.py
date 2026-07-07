@@ -21,6 +21,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from ..extensions import db, limiter
 from ..models import User, VerificationCode, utcnow
 from ..services.mailer import send_verification_code
+from ..services.recommend import INTENTS, valid_intent_keys
 from . import bp
 
 log = logging.getLogger(__name__)
@@ -161,11 +162,13 @@ def register():
     if current_user.is_authenticated:
         return redirect(url_for("main.account"))
     if request.method == "GET":
-        return render_template("auth/register.html", next=request.args.get("next", ""))
+        return render_template("auth/register.html", next=request.args.get("next", ""),
+                               intents=INTENTS, selected_goals=set())
 
     email = _normalize(request.form.get("email"))
     password = _password()
     next_path = request.form.get("next", "")
+    goals = valid_intent_keys(request.form.getlist("goals"))
 
     errors = []
     if not EMAIL_RE.match(email) or len(email) > 255:
@@ -176,7 +179,8 @@ def register():
         for e in errors:
             flash(e, "error")
         return render_template("auth/register.html", next=next_path,
-                               email=request.form.get("email", "")), 400
+                               email=request.form.get("email", ""),
+                               intents=INTENTS, selected_goals=set(goals)), 400
 
     existing = User.query.filter_by(email=email).first()
     if existing and existing.is_verified:
@@ -190,6 +194,8 @@ def register():
         user = User(email=email)
         user.set_password(password)
         db.session.add(user)
+    if goals:
+        user.set_goals(goals)
     db.session.commit()
 
     sent = _issue_code(user, "confirm")

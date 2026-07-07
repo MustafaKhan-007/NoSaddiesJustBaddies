@@ -1,0 +1,62 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Community{% endblock %}
+
+{% block content %}
+<h1>Community</h1>
+<p class="field-help">Unkind language is blocked automatically and members are warned, then paused after {{ 2 }} warnings. You can step in here too.</p>
+
+<div class="admin-panel">
+  <h2>Members needing a look</h2>
+  {% if flagged %}
+  <table class="admin-table">
+    <thead><tr><th>Member</th><th>Warnings</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for member in flagged %}
+      <tr>
+        <td>{{ member.public_name() }} <span style="color: var(--ink-soft);">({{ member.email }})</span></td>
+        <td>{{ member.forum_warnings }}</td>
+        <td>{% if member.forum_banned %}<span class="status-pill status-pill--refunded">Paused</span>{% else %}<span class="status-pill status-pill--paid">Warned</span>{% endif %}</td>
+        <td>
+          <form method="post" action="{{ url_for('admin.community_reset_member', user_id=member.id) }}"
+                data-confirm="Clear warnings and restore posting for this member?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn--secondary btn--sm" type="submit">Give a fresh start</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>All calm here. No warnings on file.</p>
+  {% endif %}
+</div>
+
+<div class="admin-panel">
+  <h2>Recent posts</h2>
+  {% if posts %}
+  <table class="admin-table" data-collapsible="15">
+    <thead><tr><th>Post</th><th>Category</th><th>Author</th><th>When</th><th></th></tr></thead>
+    <tbody>
+      {% for post in posts %}
+      <tr>
+        <td><a href="{{ url_for('forums.post', post_id=post.id) }}">{{ post.title }}</a></td>
+        <td>{{ post.category.name }}</td>
+        <td>{{ post.author.public_name() }}{% if post.anonymous %} <em>(anon)</em>{% endif %}</td>
+        <td>{{ post.created_at.strftime('%b %d, %Y') }}</td>
+        <td>
+          <form method="post" action="{{ url_for('admin.community_delete_post', post_id=post.id) }}"
+                data-confirm="Remove this post and its comments?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn--danger btn--sm" type="submit">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No posts yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

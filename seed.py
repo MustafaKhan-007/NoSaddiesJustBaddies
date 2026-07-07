@@ -15,9 +15,17 @@ from pathlib import Path
 
 from app import create_app
 from app.extensions import db
-from app.models import FaqItem, Page, Quote
+from app.models import FaqItem, ForumCategory, Page, Quote
 
 SEED_FILE = Path(__file__).parent / "data" / "quotes_seed.json"
+
+FORUM_CATEGORIES = [
+    ("venting", "The Vent", "A safe place to let it out. No fixing required — just be heard.", "#e0607e", 0),
+    ("divorce-custody", "Divorce & Custody", "For anyone untangling a marriage, co-parenting, or a custody road.", "#7b6cf6", 1),
+    ("content-creation", "Content & Creating", "Growing an audience, staying consistent, and the messy middle of building.", "#f0a202", 2),
+    ("starting-over", "Starting Over", "New city, new job, new self. The brave, ordinary work of beginning again.", "#2bb673", 3),
+    ("wins", "Small Wins", "The tiny victories that deserve a cheer. Post yours, celebrate theirs.", "#22a2c3", 4),
+]
 
 STARTER_FAQS = [
     ("How do I get my files after buying?",
@@ -25,8 +33,8 @@ STARTER_FAQS = [
      "with your download links. Check spam if it's shy. You can always re-send "
      "them from [your orders page](https://app.lemonsqueezy.com/my-orders).", 0),
     ("Do I need an account here to buy?",
-     "No. Checkout works without one. An account just adds the daily check-in, "
-     "streaks, and saved quotes \u2014 it's free.", 1),
+     "No. Checkout works without one. An account just adds saved quotes, the "
+     "community forums, and course picks made for you \u2014 it's free.", 1),
     ("What's your refund policy?",
      "See the [refund policy](/refunds) page. Short version: I'd rather you be "
      "honest with me than stuck with something that isn't helping.", 2),
@@ -79,6 +87,16 @@ def seed():
             if Page.query.filter_by(slug=slug).first() is None:
                 db.session.add(Page(slug=slug, title=title, body_md=body))
                 print(f"Created page stub: {slug}")
+
+        # 4. forum categories (idempotent on slug)
+        cat_added = 0
+        for slug, name, desc, accent, order in FORUM_CATEGORIES:
+            if ForumCategory.query.filter_by(slug=slug).first() is None:
+                db.session.add(ForumCategory(slug=slug, name=name, description=desc,
+                                             accent=accent, sort_order=order))
+                cat_added += 1
+        if cat_added:
+            print(f"Added {cat_added} forum categories")
 
         db.session.commit()
         print("Seed complete.")

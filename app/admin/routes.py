@@ -15,8 +15,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import (FaqItem, Order, Page, Product, Quote, QuoteFavorite,
-                      QuotePin, Subscriber, Testimonial, QUOTE_CATEGORIES)
+from ..models import (FaqItem, ForumComment, ForumPost, Order, Page, Product,
+                      Quote, QuoteFavorite, QuotePin, Subscriber, Testimonial,
+                      User, QUOTE_CATEGORIES)
 from ..services import quotes as quotes_service
 from ..services import stats
 from ..services.lemonsqueezy import sync_recent_orders
@@ -189,6 +190,9 @@ def _product_from_form(product: Product, form) -> list[str]:
 
     product.meta_title = (form.get("meta_title") or "").strip()[:160] or None
     product.meta_description = (form.get("meta_description") or "").strip()[:200] or None
+
+    raw_tags = re.split(r"[,\n]", form.get("tags") or "")
+    product.set_tags(raw_tags)
 
     status = form.get("status")
     if status in ("draft", "published", "archived"):
@@ -620,3 +624,47 @@ def settings():
         flash("Settings saved.", "success")
         return redirect(url_for("admin.settings"))
     return render_template("admin/settings.html", values=all_settings())
+
+
+# =============================== COMMUNITY ===================================
+
+@bp.route("/community")
+@admin_required
+def community():
+    posts = (ForumPost.query.options(joinedload(ForumPost.category),
+                                     joinedload(ForumPost.author))
+             .order_by(ForumPost.created_at.desc()).limit(100).all())
+    flagged = (User.query.filter((User.forum_warnings > 0) | (User.forum_banned.is_(True)))
+               .order_by(User.forum_banned.desc(), User.forum_warnings.desc()).all())
+    return render_template("admin/community.html", posts=posts, flagged=flagged)
+
+
+@bp.route("/community/post/<int:post_id>/delete", methods=["POST"])
+@admin_required
+def community_delete_post(post_id):
+    post = db.session.get(ForumPost, post_id) or abort(404)
+    db.session.delete(post)
+    db.session.commit()
+    flash("Post removed.", "success")
+    return redirect(url_for("admin.community"))
+
+
+@bp.route("/community/comment/<int:comment_id>/delete", methods=["POST"])
+@admin_required
+def community_delete_comment(comment_id):
+    comment = db.session.get(ForumComment, comment_id) or abort(404)
+    db.session.delete(comment)
+    db.session.commit()
+    flash("Comment removed.", "success")
+    return redirect(url_for("admin.community"))
+
+
+@bp.route("/community/member/<int:user_id>/reset", methods=["POST"])
+@admin_required
+def community_reset_member(user_id):
+    member = db.session.get(User, user_id) or abort(404)
+    member.forum_warnings = 0
+    member.forum_banned = False
+    db.session.commit()
+    flash("Fresh start given \u2014 warnings cleared and posting restored.", "success")
+    return redirect(url_for("admin.community"))
