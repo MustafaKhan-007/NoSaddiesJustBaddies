@@ -9,3 +9,10 @@
   <span class="avatar avatar--{{ size }}">{{ user.initials() }}</span>
 {%- endif -%}
 {% endmacro %}
+
+{# Author name — links to the public profile only when NOT anonymous #}
+{% macro author_name(user, anonymous=False) %}
+{%- if anonymous -%}Anonymous
+{%- else -%}<a class="author-link" href="{{ url_for('main.profile', user_id=user.id) }}">{{ user.public_name() }}</a>
+{%- endif -%}
+{% endmacro %}

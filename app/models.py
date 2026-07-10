@@ -40,6 +40,7 @@ class User(UserMixin, db.Model):
     avatar_data = db.Column(db.LargeBinary)  # uploaded avatar bytes (survives deploys)
     avatar_mime = db.Column(db.String(40))
     bio = db.Column(db.String(400))
+    links_json = db.Column(db.Text)          # JSON list of {"label","url"}
     goals_json = db.Column(db.Text)          # JSON list of intent keys
     default_anonymous = db.Column(db.Boolean, nullable=False, default=False)
 
@@ -94,6 +95,15 @@ class User(UserMixin, db.Model):
 
     def set_goals(self, keys) -> None:
         self.goals_json = json.dumps(list(keys)) if keys else None
+
+    def links(self) -> list:
+        try:
+            return json.loads(self.links_json) if self.links_json else []
+        except ValueError:
+            return []
+
+    def set_links(self, links) -> None:
+        self.links_json = json.dumps(list(links)) if links else None
 
 
 class VerificationCode(db.Model):

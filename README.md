@@ -182,7 +182,12 @@ PY
   may post/comment/reply anonymously (per item, or by default via their settings).
 - Avatars are uploaded (JPG/PNG/WEBP/GIF, ≤6 MB), re-encoded to a square JPEG
   with Pillow, and stored in the database so they survive Render's ephemeral
-  disk. They're served from `/avatar/<user_id>`.
+  disk. They're served from `/avatar/<user_id>`. Click the avatar in Settings to
+  upload; a subpage at `/account/password` handles password changes.
+- Members can add up to five custom links (Instagram, their own courses, a
+  website…) in Settings. Non-anonymous authors' names in the forums link to a
+  public profile at `/u/<user_id>` showing their avatar, bio, and links;
+  anonymous posts expose no profile.
 - Kindness guard (`app/services/moderation.py`): profane content is blocked
   (never stored), the author is warned twice, and the next offense pauses their
   posting. Admin → Community shows recent posts (removable) and warned/paused

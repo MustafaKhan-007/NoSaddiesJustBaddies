@@ -21,6 +21,25 @@ log = logging.getLogger(__name__)
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
+#: how many custom profile links a member may add
+PROFILE_LINK_MAX = 5
+
+
+def _collect_profile_links(form):
+    """Read paired label/url inputs (link_label_N / link_url_N) into a clean list."""
+    links = []
+    for i in range(PROFILE_LINK_MAX):
+        url = (form.get(f"link_url_{i}") or "").strip()[:300]
+        label = (form.get(f"link_label_{i}") or "").strip()[:40]
+        if not url:
+            continue
+        if not url.lower().startswith(("http://", "https://")):
+            url = "https://" + url
+        if not label:
+            label = re.sub(r"^https?://(www\.)?", "", url).split("/")[0][:40]
+        links.append({"label": label, "url": url})
+    return links
+
 SEED_TESTIMONIALS = [
     {"quote": "I bought the notebook the week everything fell apart. It didn't fix my life \u2014 it gave me somewhere to stand while I fixed it.", "first_name": "Dana"},
     {"quote": "The course felt like a friend who's been through it, not a guru shouting at me. I finished it. I never finish things.", "first_name": "Priya"},
@@ -149,15 +168,24 @@ def account():
                  .order_by(QuoteFavorite.created_at.desc()).all())
     return render_template("main/account.html", greeting=greeting, orders=orders,
                            favorites=favorites,
-                           recommended=recommend_products(current_user),
-                           **_quote_context())
+                           recommended=recommend_products(current_user))
 
 
 @bp.route("/account/settings")
 @login_required
 def settings():
     return render_template("main/settings.html", intents=INTENTS,
-                           user_goals=set(current_user.goals()))
+                           user_goals=set(current_user.goals()),
+                           links=current_user.links(),
+                           link_max=PROFILE_LINK_MAX)
+
+
+@bp.route("/u/<int:user_id>")
+def profile(user_id):
+    user = db.session.get(User, user_id)
+    if user is None or user.deleted_at is not None:
+        abort(404)
+    return render_template("main/profile.html", profile_user=user)
 
 
 @bp.route("/account/profile", methods=["POST"])
@@ -169,6 +197,7 @@ def update_profile():
     current_user.bio = bio or None
     current_user.default_anonymous = request.form.get("default_anonymous") == "1"
     current_user.set_goals(valid_intent_keys(request.form.getlist("goals")))
+    current_user.set_links(_collect_profile_links(request.form))
 
     if request.form.get("remove_avatar") == "1":
         current_user.avatar_data = None
@@ -202,17 +231,19 @@ def avatar(user_id):
     return resp
 
 
-@bp.route("/account/password", methods=["POST"])
+@bp.route("/account/password", methods=["GET", "POST"])
 @login_required
 def change_password():
+    if request.method == "GET":
+        return render_template("main/password.html")
     current = (request.form.get("current_password") or "").strip()
     new = (request.form.get("new_password") or "").strip()
     if not current_user.check_password(current):
         flash("Your current password didn't match \u2014 no changes made.", "error")
-        return redirect(url_for("main.settings"))
+        return redirect(url_for("main.change_password"))
     if len(new) < 8:
         flash("Your new password needs at least 8 characters.", "error")
-        return redirect(url_for("main.settings"))
+        return redirect(url_for("main.change_password"))
     current_user.set_password(new)
     db.session.commit()
     flash("Password updated.", "success")

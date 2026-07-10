@@ -4,7 +4,7 @@
 
 {% block content %}
 <section class="section">
-  <div class="container" style="max-width: 560px;">
+  <div class="container" style="max-width: 640px;">
     <p class="eyebrow"><a href="{{ url_for('main.account') }}">&larr; My space</a></p>
     <h1>Settings</h1>
 
@@ -20,14 +20,12 @@
       <div class="avatar-edit">
         <label class="avatar-edit__pick" for="avatar_file" title="Change your picture">
           {{ avatar(current_user, 'xl') }}
-          <span class="avatar-edit__badge" aria-hidden="true">Change</span>
         </label>
         <input type="file" id="avatar_file" name="avatar_file" class="sr-only"
-               accept="image/png,image/jpeg,image/webp,image/gif"
-               data-avatar-preview>
-        <div>
+               accept="image/png,image/jpeg,image/webp,image/gif" data-avatar-preview>
+        <div class="avatar-edit__text">
           <strong>{{ current_user.public_name() }}</strong>
-          <p class="field-help" style="margin: 2px 0 0;">Tap your picture to upload a new one (up to 6&nbsp;MB). This is how the community sees you, unless you post anonymously.</p>
+          <p class="field-help">Tap your picture to upload a new one (JPG, PNG, WEBP or GIF, up to 6&nbsp;MB). It's cropped to a circle, and it's how the community sees you unless you post anonymously.</p>
           {% if current_user.has_avatar() or current_user.avatar_url %}
           <label class="checkline">
             <input type="checkbox" name="remove_avatar" value="1"> Remove my current picture
@@ -46,6 +44,20 @@
         <textarea id="bio" name="bio" rows="3" maxlength="400"
                   placeholder="Optional — a sentence or two.">{{ current_user.bio or '' }}</textarea>
       </div>
+
+      <fieldset class="link-fields">
+        <legend>Your links</legend>
+        <p class="field-help">Add your Instagram, your own courses, a website &mdash; anything you'd like people to find. Shown on your public profile.</p>
+        {% for i in range(link_max) %}
+        {% set existing = links[i] if i < links|length else None %}
+        <div class="link-row">
+          <input type="text" name="link_label_{{ i }}" maxlength="40"
+                 value="{{ existing.label if existing else '' }}" placeholder="Label (e.g. Instagram)">
+          <input type="url" name="link_url_{{ i }}" maxlength="300"
+                 value="{{ existing.url if existing else '' }}" placeholder="https://...">
+        </div>
+        {% endfor %}
+      </fieldset>
 
       <fieldset class="intent-picker">
         <legend>What brings you here?</legend>
@@ -69,28 +81,13 @@
       <button class="btn btn--primary" type="submit">Save changes</button>
     </form>
 
-    <div style="margin-top: 48px;">
-      <h3>Change password</h3>
-      <form method="post" action="{{ url_for('main.change_password') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="field">
-          <label for="current_password">Current password</label>
-          <input type="password" id="current_password" name="current_password" required autocomplete="current-password">
-        </div>
-        <div class="field">
-          <label for="new_password">New password</label>
-          <div class="password-wrap">
-            <input type="password" id="new_password" name="new_password" required minlength="8" autocomplete="new-password">
-            <button type="button" class="password-toggle" data-toggles="new_password"
-                    aria-label="Show password" aria-pressed="false">Show</button>
-          </div>
-          <p class="field-help">At least 8 characters.</p>
-        </div>
-        <button class="btn btn--secondary btn--sm" type="submit">Update password</button>
-      </form>
+    <div class="settings-block">
+      <h3>Password</h3>
+      <p class="field-help">Change the password you use to sign in.</p>
+      <a class="btn btn--secondary btn--sm" href="{{ url_for('main.change_password') }}">Change password</a>
     </div>
 
-    <div style="margin-top: 48px;">
+    <div class="settings-block">
       <h3>Leaving?</h3>
       <p class="field-help">Closing your account removes your profile, favorites, and forum posts from view. Your purchases stay safe with Lemon Squeezy.</p>
       <form method="post" action="{{ url_for('main.delete_account') }}"

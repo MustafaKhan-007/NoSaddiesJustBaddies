@@ -25,6 +25,13 @@ class Config:
 
     SQLALCHEMY_DATABASE_URI = _database_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Managed Postgres (e.g. Render) drops idle connections; without pre-ping the
+    # first request after an idle spell hits a dead connection and 500s
+    # ("something went sideways"). Pre-ping + recycle keeps the pool healthy.
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+    }
 
     # Sessions / auth
     SESSION_COOKIE_NAME = "firstlight_session"

@@ -337,6 +337,29 @@ r = client.get("/account/settings")
 sbody = r.get_data(as_text=True)
 ok("Settings page renders with intents + upload",
    r.status_code == 200 and "What brings you here?" in sbody and 'name="avatar_file"' in sbody)
+ok("Settings offers a change-password button (no inline fields)",
+   'href="/account/password"' in sbody and 'name="current_password"' not in sbody)
+
+r = client.get("/account/password")
+ok("Change-password subpage renders",
+   r.status_code == 200 and 'name="current_password"' in r.get_data(as_text=True))
+
+# profile links + public profile page
+client.post("/account/profile", data={
+    "display_name": "New Person",
+    "link_label_0": "Instagram", "link_url_0": "instagram.com/newperson",
+    "link_label_1": "", "link_url_1": "",
+}, follow_redirects=True)
+with app.app_context():
+    saved_links = User.query.filter_by(email="newperson@example.com").first().links()
+ok("Profile link saved and url normalised to https",
+   bool(saved_links) and saved_links[0]["url"] == "https://instagram.com/newperson")
+
+r = client.get(f"/u/{av_uid}")
+pbody = r.get_data(as_text=True)
+ok("Public profile page renders with links",
+   r.status_code == 200 and "New Person" in pbody and "instagram.com/newperson" in pbody)
+ok("Unknown profile returns 404", client.get("/u/99999").status_code == 404)
 
 # recommendations match a member's stated intent to hidden course tags
 with app.app_context():
