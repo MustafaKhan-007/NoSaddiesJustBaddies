@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body class="admin-body">
+  {% include "partials/badge_defs.html" %}
   <div class="admin-shell">
     <aside class="admin-sidebar">
       <a class="brand" href="{{ url_for('admin.dashboard') }}">{{ site.site_title }} studio</a>
@@ -25,6 +26,7 @@
         <a href="{{ url_for('admin.subscribers') }}" class="{{ 'active' if here.startswith('/admin/subscribers') }}">Subscribers</a>
         <a href="{{ url_for('admin.orders') }}" class="{{ 'active' if here.startswith('/admin/orders') }}">Orders</a>
         <a href="{{ url_for('admin.community') }}" class="{{ 'active' if here.startswith('/admin/community') }}">Community</a>
+        <a href="{{ url_for('admin.badges') }}" class="{{ 'active' if here.startswith('/admin/badges') }}">Badges</a>
         <a href="{{ url_for('admin.settings') }}" class="{{ 'active' if here.startswith('/admin/settings') }}">Settings</a>
       </nav>
       <nav class="admin-nav" style="margin-top: 32px; border-top: 1px solid rgba(250,245,238,0.2); padding-top: 16px;">

@@ -240,6 +240,11 @@ PY
   Featured badges show on the public profile (`/u/<id>`) and the member's top
   badge shows next to their name in the community — hover any badge to see the
   milestone. Anonymous posts never reveal a badge.
+- **Studio → Badges** shows every category's full tier ladder (rendered) and
+  lets the owner retune each **milestone threshold** (values must climb per
+  category). Overrides live in `Setting["_badge_thresholds"]`; a *Reset to
+  defaults* button restores the originals. Titles/emblems/tier counts are fixed
+  in code; only thresholds are editable, and phrases regenerate to match.
 
 ## 5. Security notes
 

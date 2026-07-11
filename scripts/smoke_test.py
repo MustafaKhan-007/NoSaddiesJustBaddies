@@ -425,6 +425,46 @@ with app.app_context():
 ok("Owner carries the special Founder badge",
    bool(owner_prim) and owner_prim["cat"] == "owner")
 
+# --- 5b4. studio badge manager: view + tweak milestones ----------------------
+r = admin.get("/admin/badges")
+bbody = r.get_data(as_text=True)
+ok("Studio badge manager lists every category with editable milestones",
+   r.status_code == 200 and "Showing Up" in bbody and "Storyteller" in bbody
+   and 'name="t_storyteller_1"' in bbody)
+
+with app.app_context():
+    from app.services import badges as B
+    base_form = {}
+    for _cat in B.CATEGORIES:
+        for _i, _t in enumerate(B.thresholds(_cat), start=1):
+            base_form[f"t_{_cat}_{_i}"] = _t
+
+# non-ascending milestones are rejected; values stay put
+bad_form = dict(base_form)
+bad_form["t_storyteller_2"] = 1            # <= tier 1 (which is 1)
+admin.post("/admin/badges", data=bad_form, follow_redirects=True)
+with app.app_context():
+    unchanged = B.thresholds("storyteller")
+ok("Non-ascending milestones are rejected", unchanged == B.default_thresholds("storyteller"),
+   f"got {unchanged}")
+
+# a valid tweak saves and flows through to the badge tooltip/phrase
+good_form = dict(base_form)
+good_form["t_storyteller_3"] = 30          # was 25
+admin.post("/admin/badges", data=good_form, follow_redirects=True)
+with app.app_context():
+    tweaked = B.thresholds("storyteller")
+    phrase = B.badge_dict("storyteller", 3)["phrase"]
+ok("Owner can tweak a milestone value", tweaked[2] == 30, f"got {tweaked}")
+ok("Tweaked milestone updates the badge phrase", phrase == "30 posts", f"got {phrase}")
+
+# reset restores defaults
+admin.post("/admin/badges", data={"reset": "1"}, follow_redirects=True)
+with app.app_context():
+    reset_vals = B.thresholds("storyteller")
+ok("Reset restores default milestones", reset_vals == B.default_thresholds("storyteller"),
+   f"got {reset_vals}")
+
 # recommendations match a member's stated intent to hidden course tags
 with app.app_context():
     from app.models import Product

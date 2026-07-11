@@ -1,0 +1,58 @@
+{% extends "admin/base_admin.html" %}
+{% from "partials/badges.html" import badge_svg %}
+{% block title %}Badges{% endblock %}
+
+{% block content %}
+<h1>Badges</h1>
+<p class="field-help" style="max-width: 70ch;">
+  Every badge members can earn, shown at each tier. The emblem and look are
+  fixed &mdash; but you can tune the <strong>milestone</strong> each tier asks
+  for. Values must climb from left to right. Hover a badge to see its tooltip.
+</p>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  {% for cat in overview %}
+  <div class="admin-panel">
+    <h2 style="margin-top: 0;">{{ cat.name }}
+      <span style="font-weight: 400; font-size: 13px; color: var(--ink-soft);">&middot; {{ cat.metric_label }}</span>
+    </h2>
+    <p class="field-help" style="margin-top: -4px;">{{ cat.blurb }}</p>
+    <div class="badge-admin-grid">
+      {% for tier in cat.tiers %}
+      <div class="badge-admin-cell">
+        {{ badge_svg(tier.badge, "lg") }}
+        <strong>{{ tier.title }}</strong>
+        <label for="t_{{ cat.cat }}_{{ tier.level }}">Tier {{ tier.level }} milestone</label>
+        <input type="number" min="1" id="t_{{ cat.cat }}_{{ tier.level }}"
+               name="t_{{ cat.cat }}_{{ tier.level }}" value="{{ tier.threshold }}">
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="admin-panel">
+    <h2 style="margin-top: 0;">Founder</h2>
+    <p class="field-help" style="margin-top: -4px;">Your special owner badge. It always shows for the studio owner and isn't earned.</p>
+    <div class="badge-admin-grid">
+      <div class="badge-admin-cell">
+        {{ badge_svg(owner_badge, "lg") }}
+        <strong>{{ owner_badge.title }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 12px; align-items: center;">
+    <button class="btn btn--primary" type="submit">Save milestones</button>
+  </div>
+</form>
+
+<form method="post" style="margin-top: 14px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="reset" value="1">
+  <button class="btn btn--secondary btn--sm" type="submit">Reset to defaults</button>
+  <span class="field-help" style="margin-left: 8px;">Restores the original milestone values for every badge.</span>
+</form>
+{% endblock %}

@@ -6,31 +6,51 @@ frame grows more ornate (rays -> wings -> ribbon -> gems) and the metal richer
 the higher the tier — so "25 posts" and "50 posts" look related but the latter
 is clearly more evolved.
 
-Nothing here stores badge state: a member's badges are derived from their live
-stats (streak, posts, likes received), so they can never fall out of sync.
+A member's badges are derived from their live stats (streak, posts, likes
+received), so they can never fall out of sync. Milestone *thresholds* are
+editable by the owner in the studio (stored in `Setting["_badge_thresholds"]`);
+everything else (emblem, titles, count of tiers) is fixed here.
 """
-from datetime import date
+import json
 
 from sqlalchemy import func
 
 from ..extensions import db
-from ..models import (ForumComment, ForumCommentLike, ForumPost, User)
+from ..models import (ForumComment, ForumCommentLike, ForumPost, Setting)
+
+_OVERRIDE_KEY = "_badge_thresholds"
+
+
+def _days(n):
+    return f"a {n}-day streak"
+
+
+def _posts(n):
+    return f"{n} post" if n == 1 else f"{n} posts"
+
+
+def _likes(n):
+    return f"{n} like on your comments" if n == 1 else f"{n} likes on your comments"
+
 
 # --- category definitions ----------------------------------------------------
 # metal keys map to gradients defined in templates/partials/badge_defs.html
+# tiers are (default_threshold, title); the human phrase is built from the
+# live threshold via `phrase` so it stays correct when the owner tweaks values.
 CATEGORIES = {
     "showing_up": {
         "name": "Showing Up",
         "emblem": "sunrise",
         "metal": "amber",
         "blurb": "Daily check-ins \u2014 the quiet discipline of returning.",
-        # (threshold, tier title, human phrase for the tooltip)
+        "metric_label": "longest streak (days)",
+        "phrase": _days,
         "tiers": [
-            (3,   "First Light",   "a 3-day streak"),
-            (7,   "Steady",        "a 7-day streak"),
-            (30,  "Devoted",       "a 30-day streak"),
-            (100, "Unbreakable",   "a 100-day streak"),
-            (365, "A Whole Year",  "a 365-day streak"),
+            (3,   "First Light"),
+            (7,   "Steady"),
+            (30,  "Devoted"),
+            (100, "Unbreakable"),
+            (365, "A Whole Year"),
         ],
     },
     "storyteller": {
@@ -38,12 +58,14 @@ CATEGORIES = {
         "emblem": "quill",
         "metal": "plum",
         "blurb": "Posts shared with the community.",
+        "metric_label": "posts written",
+        "phrase": _posts,
         "tiers": [
-            (1,   "First Words",       "1 post"),
-            (10,  "Finding Your Voice","10 posts"),
-            (25,  "Storyteller",       "25 posts"),
-            (50,  "Wordsmith",         "50 posts"),
-            (100, "Luminary",          "100 posts"),
+            (1,   "First Words"),
+            (10,  "Finding Your Voice"),
+            (25,  "Storyteller"),
+            (50,  "Wordsmith"),
+            (100, "Luminary"),
         ],
     },
     "kindred": {
@@ -51,11 +73,13 @@ CATEGORIES = {
         "emblem": "hearts",
         "metal": "rose",
         "blurb": "Likes earned on your comments \u2014 helpfulness, felt.",
+        "metric_label": "likes earned on comments",
+        "phrase": _likes,
         "tiers": [
-            (5,   "Kind Soul", "5 likes on your comments"),
-            (25,  "Helper",    "25 likes on your comments"),
-            (50,  "Pillar",    "50 likes on your comments"),
-            (100, "Beloved",   "100 likes on your comments"),
+            (5,   "Kind Soul"),
+            (25,  "Helper"),
+            (50,  "Pillar"),
+            (100, "Beloved"),
         ],
     },
 }
@@ -71,6 +95,55 @@ OWNER_BADGE = {
     "phrase": "she built this place",
     "tooltip": "Founder \u2014 she built this place",
 }
+
+
+# --- thresholds (owner-editable) ---------------------------------------------
+def _overrides() -> dict:
+    row = db.session.get(Setting, _OVERRIDE_KEY)
+    if not row or not row.value:
+        return {}
+    try:
+        data = json.loads(row.value)
+    except ValueError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def default_thresholds(cat_key: str) -> list:
+    return [t[0] for t in CATEGORIES[cat_key]["tiers"]]
+
+
+def thresholds(cat_key: str) -> list:
+    """Live thresholds for a category (owner override, or the defaults)."""
+    defaults = default_thresholds(cat_key)
+    ov = _overrides().get(cat_key)
+    if not isinstance(ov, list) or len(ov) != len(defaults):
+        return defaults
+    out = []
+    for v in ov:
+        try:
+            out.append(int(v))
+        except (TypeError, ValueError):
+            return defaults
+    return out
+
+
+def set_thresholds(mapping: dict) -> None:
+    """Persist a {cat_key: [int, ...]} override map (validated by the caller)."""
+    row = db.session.get(Setting, _OVERRIDE_KEY)
+    payload = json.dumps(mapping)
+    if row is None:
+        db.session.add(Setting(key=_OVERRIDE_KEY, value=payload))
+    else:
+        row.value = payload
+    db.session.commit()
+
+
+def reset_thresholds() -> None:
+    row = db.session.get(Setting, _OVERRIDE_KEY)
+    if row is not None:
+        db.session.delete(row)
+        db.session.commit()
 
 
 # --- metrics -----------------------------------------------------------------
@@ -89,9 +162,8 @@ def _metric(cat_key: str, user) -> int:
 
 def _current_level(cat_key: str, metric: int) -> int:
     """1-based index of the highest tier reached, or 0 if none."""
-    tiers = CATEGORIES[cat_key]["tiers"]
     level = 0
-    for i, (threshold, _title, _phrase) in enumerate(tiers, start=1):
+    for i, threshold in enumerate(thresholds(cat_key), start=1):
         if metric >= threshold:
             level = i
     return level
@@ -100,7 +172,9 @@ def _current_level(cat_key: str, metric: int) -> int:
 def badge_dict(cat_key: str, level: int) -> dict:
     """Build the render/tooltip payload for a category badge at a given tier."""
     cat = CATEGORIES[cat_key]
-    threshold, title, phrase = cat["tiers"][level - 1]
+    threshold = thresholds(cat_key)[level - 1]
+    title = cat["tiers"][level - 1][1]
+    phrase = cat["phrase"](threshold)
     return {
         "cat": cat_key,
         "name": cat["name"],
@@ -137,8 +211,9 @@ def category_progress(user) -> list:
         level = _current_level(cat_key, metric)
         badge = badge_dict(cat_key, level) if level else None
         next_phrase = None
-        if level < len(cat["tiers"]):
-            next_threshold, _t, next_phrase = cat["tiers"][level]
+        ths = thresholds(cat_key)
+        if level < len(ths):
+            next_phrase = cat["phrase"](ths[level])
         rows.append({
             "cat": cat_key, "name": cat["name"], "blurb": cat["blurb"],
             "metric": metric, "badge": badge, "level": level,
@@ -146,6 +221,27 @@ def category_progress(user) -> list:
             "next_phrase": next_phrase,
         })
     return rows
+
+
+def all_badges_overview() -> list:
+    """Every category's full tier ladder — for the studio's badge manager."""
+    overview = []
+    for cat_key, cat in CATEGORIES.items():
+        ths = thresholds(cat_key)
+        tiers = []
+        for i, (_default, title) in enumerate(cat["tiers"], start=1):
+            tiers.append({
+                "level": i,
+                "title": title,
+                "threshold": ths[i - 1],
+                "badge": badge_dict(cat_key, i),
+            })
+        overview.append({
+            "cat": cat_key, "name": cat["name"], "blurb": cat["blurb"],
+            "metric_label": cat["metric_label"], "tiers": tiers,
+            "is_default": ths == default_thresholds(cat_key),
+        })
+    return overview
 
 
 def displayed_badges(user) -> list:

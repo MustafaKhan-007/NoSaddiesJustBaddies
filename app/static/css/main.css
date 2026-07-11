@@ -926,3 +926,20 @@ details.faq-item > form { padding: 0 20px 20px; }
 .badge-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; text-align: center; }
 .badge-tile figcaption strong { display: block; font-size: 14px; }
 .badge-tile figcaption span { font-size: 12px; color: var(--ink-soft); }
+
+/* studio badge manager */
+.badge-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 18px;
+  margin-top: 14px;
+}
+.badge-admin-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  text-align: center; padding: 14px 10px; border-radius: 14px;
+  background: var(--dawn-ivory);
+}
+.badge-admin-cell .badge--lg { width: 76px; }
+.badge-admin-cell strong { font-size: 14px; }
+.badge-admin-cell label { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.badge-admin-cell input[type="number"] { width: 92px; text-align: center; }

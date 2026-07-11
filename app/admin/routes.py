@@ -23,6 +23,7 @@ from ..extensions import db
 from ..models import (FaqItem, ForumComment, ForumPost, Order, Page, Product,
                       ProductAsset, Quote, QuoteFavorite, QuotePin, Subscriber,
                       Testimonial, User, QUOTE_CATEGORIES)
+from ..services import badges as badges_service
 from ..services import quotes as quotes_service
 from ..services import stats
 from ..services.assets import AssetError, process_asset
@@ -668,6 +669,51 @@ def settings():
         flash("Settings saved.", "success")
         return redirect(url_for("admin.settings"))
     return render_template("admin/settings.html", values=all_settings())
+
+
+# ================================ BADGES =====================================
+
+@bp.route("/badges", methods=["GET", "POST"])
+@admin_required
+def badges():
+    if request.method == "POST":
+        if request.form.get("reset"):
+            badges_service.reset_thresholds()
+            flash("Milestones reset to their defaults.", "success")
+            return redirect(url_for("admin.badges"))
+
+        mapping, errors = {}, []
+        for cat_key, cat in badges_service.CATEGORIES.items():
+            values = []
+            for level in range(1, len(cat["tiers"]) + 1):
+                raw = (request.form.get(f"t_{cat_key}_{level}") or "").strip()
+                try:
+                    n = int(raw)
+                except ValueError:
+                    errors.append(f"{cat['name']}: milestone {level} must be a whole number.")
+                    break
+                if n < 1:
+                    errors.append(f"{cat['name']}: milestones must be at least 1.")
+                    break
+                if values and n <= values[-1]:
+                    errors.append(f"{cat['name']}: each milestone must be higher than the one before.")
+                    break
+                values.append(n)
+            if len(values) == len(cat["tiers"]):
+                mapping[cat_key] = values
+
+        if errors:
+            for msg in errors:
+                flash(msg, "error")
+            return redirect(url_for("admin.badges"))
+
+        badges_service.set_thresholds(mapping)
+        flash("Milestones saved.", "success")
+        return redirect(url_for("admin.badges"))
+
+    return render_template("admin/badges.html",
+                           overview=badges_service.all_badges_overview(),
+                           owner_badge=badges_service.OWNER_BADGE)
 
 
 # =============================== COMMUNITY ===================================
