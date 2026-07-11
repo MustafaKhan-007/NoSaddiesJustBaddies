@@ -374,6 +374,57 @@ ok("Public profile page renders with links",
    r.status_code == 200 and "New Person" in pbody and "instagram.com/newperson" in pbody)
 ok("Unknown profile returns 404", client.get("/u/99999").status_code == 404)
 
+# --- 5b2. streaks: "I showed up today" ---------------------------------------
+r = client.post("/account/checkin", follow_redirects=True)
+with app.app_context():
+    m = User.query.filter_by(email="newperson@example.com").first()
+    ci = (m.total_checkins, m.current_streak, m.longest_streak, m.checked_in_today())
+ok("Check-in records the first streak day", ci == (1, 1, 1, True), f"got {ci}")
+client.post("/account/checkin", follow_redirects=True)
+with app.app_context():
+    again = User.query.filter_by(email="newperson@example.com").first().total_checkins
+ok("A second check-in the same day doesn't double-count", again == 1, f"got {again}")
+r = client.get("/account")
+ok("Account confirms you showed up today", "You showed up today" in r.get_data(as_text=True))
+
+# --- 5b3. badges: earn, display (max 3), byline, profile, owner --------------
+from app.services.badges import earned_badges, primary_badge
+with app.app_context():
+    m = User.query.filter_by(email="newperson@example.com").first()
+    earned_keys = {b["cat"] for b in earned_badges(m)}
+ok("Member earns the Storyteller badge by posting", "storyteller" in earned_keys,
+   f"earned={earned_keys}")
+
+# choosing badges: an unearned category (kindred) is ignored; earned ones stick
+client.post("/account/profile", data={"display_name": "New Person",
+            "badges_display": ["kindred", "storyteller"]}, follow_redirects=True)
+with app.app_context():
+    m = User.query.filter_by(email="newperson@example.com").first()
+    chosen = m.displayed_badges()
+    prim = primary_badge(m)
+ok("Only earned badges are saved for display", chosen == ["storyteller"], f"got {chosen}")
+ok("Primary badge is the chosen Storyteller", bool(prim) and prim["cat"] == "storyteller")
+
+r = client.get(f"/u/{av_uid}")
+ok("Profile displays the member's badge (with milestone tooltip)",
+   "Storyteller" in r.get_data(as_text=True))
+
+with app.app_context():
+    rough = ForumPost.query.filter_by(title="Rough day").first()
+    rough_id = rough.id
+r = client.get(f"/forums/p/{rough_id}")
+ok("Badge shows by the author's name on a post", "Storyteller" in r.get_data(as_text=True))
+
+r = client.get("/account/settings")
+ok("Settings shows the badge collection + chooser",
+   "Your badges" in r.get_data(as_text=True) and 'name="badges_display"' in r.get_data(as_text=True))
+
+with app.app_context():
+    owner = User.query.filter_by(is_admin=True).first()
+    owner_prim = primary_badge(owner)
+ok("Owner carries the special Founder badge",
+   bool(owner_prim) and owner_prim["cat"] == "owner")
+
 # recommendations match a member's stated intent to hidden course tags
 with app.app_context():
     from app.models import Product

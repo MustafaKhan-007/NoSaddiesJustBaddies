@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "partials/avatar.html" import avatar %}
+{% from "partials/badges.html" import badge_svg %}
 {% block title %}Settings — {{ site.site_title }}{% endblock %}
 
 {% block content %}
@@ -78,6 +79,33 @@
                {{ 'checked' if current_user.default_anonymous }}>
         Post anonymously by default in the forums
       </label>
+
+      <fieldset class="badge-picker" id="badges">
+        <legend>Your badges</legend>
+        <p class="field-help">Earned badges evolve as you go. Pick up to <strong>three</strong> to show on your
+          profile and by your name in the community. {% if current_user.is_admin %}Your Founder badge always shows.{% endif %}</p>
+        <div class="badge-collection" data-badge-max="3">
+          {% for row in badge_progress %}
+          <div class="badge-collection__row{{ ' is-locked' if not row.badge }}">
+            {{ badge_svg(row.preview, "md") }}
+            <div class="badge-collection__meta">
+              <strong>{{ row.name }}</strong>
+              {% if row.badge %}
+                <span class="field-help">{{ row.badge.title }} &middot; {{ row.badge.phrase }}
+                  {% if row.next_phrase %}&mdash; next: {{ row.next_phrase }}{% endif %}</span>
+                <label class="checkline">
+                  <input type="checkbox" name="badges_display" value="{{ row.cat }}"
+                         {{ 'checked' if row.cat in chosen_badges }}> Show on my profile
+                </label>
+              {% else %}
+                <span class="field-help">Locked &mdash; reach {{ row.next_phrase }} to unlock.</span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </fieldset>
+
       <button class="btn btn--primary" type="submit">Save changes</button>
     </form>
 

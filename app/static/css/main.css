@@ -830,3 +830,99 @@ details.faq-item > form { padding: 0 20px 20px; }
   padding: 10px 0; border-bottom: 1px solid rgba(43, 38, 34, 0.1);
 }
 .asset-list__name small { color: var(--ink-soft); font-weight: 400; }
+
+/* ------------------------------- badges --------------------------------- */
+.badge {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  line-height: 0;
+  filter: drop-shadow(0 2px 4px rgba(43, 38, 34, 0.18));
+}
+.badge svg { display: block; width: 100%; height: auto; }
+.badge--chip { width: 20px; margin: 0 2px; }
+.badge--md   { width: 54px; }
+.badge--lg   { width: 84px; }
+
+/* hover tooltip = the milestone reached */
+.badge[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translate(-50%, -6px);
+  white-space: nowrap;
+  background: var(--ink);
+  color: var(--dawn-ivory);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  padding: 6px 10px;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(43, 38, 34, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 40;
+}
+.badge[data-tip]:hover::after,
+.badge[data-tip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, -10px);
+}
+
+/* streak card ("I showed up today") */
+.streak-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 22px 26px;
+  border-radius: var(--radius-card);
+  background: linear-gradient(120deg, var(--gold-soft) 0%, var(--rose-soft) 100%);
+  border: 1px solid rgba(122, 46, 98, 0.12);
+  box-shadow: var(--shadow-card);
+}
+.streak-card__count {
+  margin: 4px 0 6px;
+  font-family: var(--font-display);
+  color: var(--plum-deep);
+}
+.streak-card__count strong { font-size: 40px; line-height: 1; }
+.streak-card__count span { font-size: 16px; margin-left: 8px; color: var(--ink-soft); }
+.streak-done {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 800; color: var(--success);
+  background: rgba(95, 122, 99, 0.12); padding: 12px 20px; border-radius: 999px;
+}
+
+/* badge strips + collections */
+.badge-strip {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 16px;
+  margin-top: 22px;
+}
+.badge-strip__items { display: flex; gap: 8px; }
+.profile-badges {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 14px;
+  margin: 20px 0 4px;
+}
+
+.badge-picker { border: none; padding: 0; margin: 28px 0 8px; }
+.badge-picker legend {
+  font-family: var(--font-display); font-size: 18px; font-weight: 600;
+  color: var(--plum); padding: 0; margin-bottom: 4px;
+}
+.badge-collection { display: grid; gap: 10px; margin-top: 14px; }
+.badge-collection__row {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 14px; border-radius: 14px; background: var(--ivory-deep);
+}
+.badge-collection__row.is-locked { opacity: 0.55; }
+.badge-collection__row.is-locked .badge { filter: grayscale(0.85) drop-shadow(0 1px 2px rgba(43,38,34,0.15)); }
+.badge-collection__meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.badge-collection__meta .checkline { margin: 4px 0 0; font-weight: 700; }
+
+.badge-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; text-align: center; }
+.badge-tile figcaption strong { display: block; font-size: 14px; }
+.badge-tile figcaption span { font-size: 12px; color: var(--ink-soft); }

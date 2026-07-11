@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "partials/avatar.html" import avatar %}
+{% from "partials/badges.html" import badge_svg %}
 {% block title %}My space — {{ site.site_title }}{% endblock %}
 
 {% block content %}
@@ -18,6 +19,44 @@
         </form>
       </div>
     </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="streak-card">
+      <div class="streak-card__body">
+        <p class="eyebrow">Showing up</p>
+        <p class="streak-card__count"><strong>{{ current_user.streak_display() }}</strong>
+          <span>day{{ '' if current_user.streak_display() == 1 else 's' }} in a row</span></p>
+        <p class="field-help" style="margin:0;">
+          {% if current_user.longest_streak %}Longest streak: {{ current_user.longest_streak }} days.{% endif %}
+          One small return, every day. That's how it's built.
+        </p>
+      </div>
+      <div class="streak-card__action">
+        {% if current_user.checked_in_today() %}
+        <span class="streak-done">&#10003; You showed up today</span>
+        {% else %}
+        <form method="post" action="{{ url_for('main.checkin') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn--primary" type="submit">I showed up today</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    {% set my_badges = profile_badges(current_user) %}
+    {% if my_badges %}
+    <div class="badge-strip">
+      <div class="badge-strip__items">
+        {% for b in my_badges %}{{ badge_svg(b, "md") }}{% endfor %}
+      </div>
+      <p class="field-help" style="margin:0;">Your badges &mdash; hover to see each milestone. <a href="{{ url_for('main.settings') }}#badges">Choose which show on your profile</a>.</p>
+    </div>
+    {% else %}
+    <p class="field-help" style="margin-top:18px;">Earn badges by showing up, posting, and being helpful in <a href="{{ url_for('forums.index') }}">the community</a>. They'll appear here and by your name.</p>
+    {% endif %}
   </div>
 </section>
 

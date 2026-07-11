@@ -1,0 +1,43 @@
+{# Shared SVG gradients/filters for all badges. Included once in base.html so
+   every inline badge SVG can reference them by id (keeps badges tiny). #}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="bg-amber" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FCEFD3"/>
+      <stop offset="45%" stop-color="#EFA733"/>
+      <stop offset="100%" stop-color="#B26E17"/>
+    </linearGradient>
+    <linearGradient id="bg-plum" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C566A3"/>
+      <stop offset="45%" stop-color="#7A2E62"/>
+      <stop offset="100%" stop-color="#451837"/>
+    </linearGradient>
+    <linearGradient id="bg-rose" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FBE3D5"/>
+      <stop offset="45%" stop-color="#E08A6D"/>
+      <stop offset="100%" stop-color="#B14F38"/>
+    </linearGradient>
+    <linearGradient id="bg-owner" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FDF0D2"/>
+      <stop offset="40%" stop-color="#EFA733"/>
+      <stop offset="100%" stop-color="#7A2E62"/>
+    </linearGradient>
+    <linearGradient id="bg-rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF6DD"/>
+      <stop offset="50%" stop-color="#F0B24A"/>
+      <stop offset="100%" stop-color="#A96C15"/>
+    </linearGradient>
+    <linearGradient id="bg-plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6B6159"/>
+      <stop offset="100%" stop-color="#2B2622"/>
+    </linearGradient>
+    <linearGradient id="bg-gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.65"/>
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="bg-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.4" flood-color="#2B2622" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+</svg>

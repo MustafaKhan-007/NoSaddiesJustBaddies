@@ -99,6 +99,13 @@ def create_app(config_class=None):
 
     app.jinja_env.filters["nl2br"] = nl2br
 
+    from .services import badges as badges_service
+
+    app.jinja_env.globals.update(
+        primary_badge=badges_service.primary_badge,
+        profile_badges=badges_service.profile_badges,
+    )
+
     @app.context_processor
     def inject_globals():
         return {"site": all_settings(), "announcement": active_announcement(),

@@ -1,6 +1,6 @@
 """All SQLAlchemy models."""
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -47,6 +47,15 @@ class User(UserMixin, db.Model):
     # forum moderation
     forum_warnings = db.Column(db.Integer, nullable=False, default=0)
     forum_banned = db.Column(db.Boolean, nullable=False, default=False)
+
+    # showing-up streak ("I showed up today")
+    last_checkin_date = db.Column(db.Date)
+    current_streak = db.Column(db.Integer, nullable=False, default=0)
+    longest_streak = db.Column(db.Integer, nullable=False, default=0)
+    total_checkins = db.Column(db.Integer, nullable=False, default=0)
+
+    # up to 3 badge category keys the member chose to feature on their profile
+    displayed_badges_json = db.Column(db.Text)
 
     codes = db.relationship("VerificationCode", backref="user", lazy="dynamic",
                             cascade="all, delete-orphan")
@@ -104,6 +113,40 @@ class User(UserMixin, db.Model):
 
     def set_links(self, links) -> None:
         self.links_json = json.dumps(list(links)) if links else None
+
+    def displayed_badges(self) -> list:
+        try:
+            return json.loads(self.displayed_badges_json) if self.displayed_badges_json else []
+        except ValueError:
+            return []
+
+    def set_displayed_badges(self, keys) -> None:
+        self.displayed_badges_json = json.dumps(list(keys)[:3]) if keys else None
+
+    def check_in(self) -> bool:
+        """Record 'I showed up today'. Returns True if this was a new check-in."""
+        today = date.today()
+        if self.last_checkin_date == today:
+            return False
+        if self.last_checkin_date == today - timedelta(days=1):
+            self.current_streak = (self.current_streak or 0) + 1
+        else:
+            self.current_streak = 1
+        self.last_checkin_date = today
+        self.total_checkins = (self.total_checkins or 0) + 1
+        self.longest_streak = max(self.longest_streak or 0, self.current_streak)
+        return True
+
+    def checked_in_today(self) -> bool:
+        return self.last_checkin_date == date.today()
+
+    def streak_display(self) -> int:
+        """Current streak, but shown as 0 if it lapsed (missed yesterday+today)."""
+        if self.last_checkin_date is None:
+            return 0
+        if self.last_checkin_date >= date.today() - timedelta(days=1):
+            return self.current_streak or 0
+        return 0
 
 
 class VerificationCode(db.Model):

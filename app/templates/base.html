@@ -13,6 +13,7 @@
   {% block head %}{% endblock %}
 </head>
 <body>
+  {% include "partials/badge_defs.html" %}
   <header class="site-header">
     <nav class="nav" aria-label="Main">
       <a class="nav-brand" href="{{ url_for('main.index') }}">{{ site.site_title }}</a>

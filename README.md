@@ -11,6 +11,8 @@ What's inside:
 - On-site reader for purchased courses & guides: owners upload PDF/Word files,
   buyers read them online (PDFs embedded, .docx rendered inline) with no download
 - Daily motivational quote with deterministic rotation and pinning
+- Daily "I showed up today" streaks and evolving SVG achievement badges
+  (shown on profiles and next to names in the community)
 - Email + password accounts with 6-digit email confirmation codes on
   registration, plus code-based password reset
 - Personalized onboarding ("what brings you here?") that quietly matches members
@@ -216,6 +218,28 @@ PY
   bar renders on the home hero only while active (`active_announcement()` checks
   the expiry). Visitors can't dismiss it; a **"Remove announcement"** button in
   Settings clears the text and date in one click.
+
+## 4e. Streaks & achievement badges
+
+- **"I showed up today"** on the account page records a daily check-in
+  (`User.check_in()`): a missed day resets the current streak, and the longest
+  streak is remembered. No per-day table — just four columns on `users`.
+- **Badges** are defined in `app/services/badges.py` (categories + tiers) and are
+  derived live from stats, so they can never fall out of sync:
+  - *Showing Up* (streak: 3/7/30/100/365 days)
+  - *Storyteller* (posts: 1/10/25/50/100)
+  - *Kindred Spirit* (likes earned on your comments: 5/25/50/100)
+  - plus a special **Founder** badge for the owner.
+- Art is **procedural SVG** (`partials/badges.html`, shared gradients in
+  `partials/badge_defs.html`) — a hexagon shield that grows more ornate the
+  higher the tier (rays → rank wings → ribbon → gold rim → gems), so tiers in a
+  category share an emblem/colour but the higher one looks clearly evolved.
+  Run `python scripts/badge_preview.py` to render the whole set to
+  `instance/badge_preview.html`.
+- Members pick **up to three** badges to feature (Settings → *Your badges*).
+  Featured badges show on the public profile (`/u/<id>`) and the member's top
+  badge shows next to their name in the community — hover any badge to see the
+  milestone. Anonymous posts never reveal a badge.
 
 ## 5. Security notes
 

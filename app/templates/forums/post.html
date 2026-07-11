@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "partials/avatar.html" import avatar, author_name %}
+{% from "partials/badges.html" import byline_badge %}
 {% block title %}{{ post.title }} — Community — {{ site.site_title }}{% endblock %}
 
 {% macro like_button(action_url, count, liked) %}
@@ -18,7 +19,7 @@
 <div class="comment {{ 'comment--reply' if is_reply }}">
   <div class="comment__head">
     {{ avatar(c.author, 'sm', c.anonymous) }}
-    <strong>{{ author_name(c.author, c.anonymous) }}</strong>
+    <strong>{{ author_name(c.author, c.anonymous) }}</strong>{{ byline_badge(c.author, c.anonymous) }}
     <span class="comment__date">{{ c.created_at.strftime('%b %d, %Y') }}</span>
   </div>
   <div class="forum-body">{{ c.body|nl2br }}</div>
@@ -53,7 +54,7 @@
       <h1>{{ post.title }}</h1>
       <p class="post-row__meta">
         {{ avatar(post.author, 'sm', post.anonymous) }}
-        {{ author_name(post.author, post.anonymous) }} &middot; {{ post.created_at.strftime('%b %d, %Y') }}
+        {{ author_name(post.author, post.anonymous) }}{{ byline_badge(post.author, post.anonymous) }} &middot; {{ post.created_at.strftime('%b %d, %Y') }}
       </p>
       <div class="forum-body">{{ post.body|nl2br }}</div>
       <div class="forum-actions">

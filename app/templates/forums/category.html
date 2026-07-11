@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/badges.html" import byline_badge %}
 {% block title %}{{ category.name }} — Community — {{ site.site_title }}{% endblock %}
 
 {% block content %}
@@ -64,7 +65,7 @@
           <h3>{{ post.title }}</h3>
           <p class="post-row__meta">
             {% if post.tag %}<span class="tag-chip tag-chip--mini">{{ post.tag.name }}</span>{% endif %}
-            {{ post.display_author() }} &middot; {{ post.created_at.strftime('%b %d, %Y') }} &middot; {{ post.comments.filter_by(hidden=False).count() }} comment{{ 's' if post.comments.filter_by(hidden=False).count() != 1 }}
+            {{ post.display_author() }}{{ byline_badge(post.author, post.anonymous) }} &middot; {{ post.created_at.strftime('%b %d, %Y') }} &middot; {{ post.comments.filter_by(hidden=False).count() }} comment{{ 's' if post.comments.filter_by(hidden=False).count() != 1 }}
           </p>
         </div>
       </a>

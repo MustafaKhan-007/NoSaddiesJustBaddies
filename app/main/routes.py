@@ -17,6 +17,7 @@ from ..models import (ContactMessage, FaqItem, Order, Page, Product,
 from ..services import quotes as quotes_service
 from ..services.assets import docx_to_html
 from ..services.avatars import AvatarError, process_avatar
+from ..services.badges import CATEGORIES, category_progress, earned_badges
 from ..services.mailer import send_contact_notification
 from ..services.recommend import INTENTS, recommend_products, valid_intent_keys
 from . import bp
@@ -43,6 +44,18 @@ def _collect_profile_links(form):
             label = re.sub(r"^https?://(www\.)?", "", url).split("/")[0][:40]
         links.append({"label": label, "url": url})
     return links
+
+
+def _valid_badge_choices(keys):
+    """Keep up to 3 chosen badge categories the member has actually earned."""
+    earned = {b["cat"] for b in earned_badges(current_user)}
+    out = []
+    for key in keys:
+        if key in CATEGORIES and key in earned and key not in out:
+            out.append(key)
+        if len(out) >= 3:
+            break
+    return out
 
 SEED_TESTIMONIALS = [
     {"quote": "I bought the notebook the week everything fell apart. It didn't fix my life \u2014 it gave me somewhere to stand while I fixed it.", "first_name": "Dana"},
@@ -181,7 +194,20 @@ def settings():
     return render_template("main/settings.html", intents=INTENTS,
                            user_goals=set(current_user.goals()),
                            links=current_user.links(),
-                           link_max=PROFILE_LINK_MAX)
+                           link_max=PROFILE_LINK_MAX,
+                           badge_progress=category_progress(current_user),
+                           chosen_badges=set(current_user.displayed_badges()))
+
+
+@bp.route("/account/checkin", methods=["POST"])
+@login_required
+def checkin():
+    if current_user.check_in():
+        db.session.commit()
+        flash("You showed up today. That's the whole thing.", "success")
+    else:
+        flash("Already checked in today \u2014 see you tomorrow.", "info")
+    return redirect(request.form.get("next") or url_for("main.account"))
 
 
 @bp.route("/u/<int:user_id>")
@@ -202,6 +228,7 @@ def update_profile():
     current_user.default_anonymous = request.form.get("default_anonymous") == "1"
     current_user.set_goals(valid_intent_keys(request.form.getlist("goals")))
     current_user.set_links(_collect_profile_links(request.form))
+    current_user.set_displayed_badges(_valid_badge_choices(request.form.getlist("badges_display")))
 
     if request.form.get("remove_avatar") == "1":
         current_user.avatar_data = None
