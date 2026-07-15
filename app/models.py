@@ -21,6 +21,23 @@ PRODUCT_TYPES = ("course", "guide")
 PRODUCT_STATUSES = ("draft", "published", "archived")
 QUOTE_CATEGORIES = ("comfort", "determination", "renewal")
 
+#: membership tiers. "none" = free (limited forum peek + shop); "healing" =
+#: full community read + post; "creator" = healing perks + videos, My Journey
+#: export, profile links, and eligibility for the home-page spotlight.
+MEMBERSHIPS = ("none", "healing", "creator")
+MEMBERSHIP_LABELS = {"none": "Free", "healing": "Healing", "creator": "Creator"}
+
+#: subjects a course/guide can be filed under (owner picks one; drives the
+#: filter tabs on the catalogue).
+PRODUCT_SUBJECTS = (
+    "Healing", "Confidence", "Relationships", "Parenting", "Money",
+    "Creativity", "Content Creation", "Productivity", "Mindfulness", "Career",
+)
+
+#: how many free (no-membership) visitors can peek at in the community
+FREE_POSTS_PER_CATEGORY = 3
+FREE_COMMENTS_PER_POST = 5
+
 
 class User(UserMixin, db.Model):
     __tablename__ = "users"
@@ -47,6 +64,9 @@ class User(UserMixin, db.Model):
     # forum moderation
     forum_warnings = db.Column(db.Integer, nullable=False, default=0)
     forum_banned = db.Column(db.Boolean, nullable=False, default=False)
+
+    # membership tier: none / healing / creator (owner-assigned)
+    membership = db.Column(db.String(20), nullable=False, default="none")
 
     # showing-up streak ("I showed up today")
     last_checkin_date = db.Column(db.Date)
@@ -95,6 +115,20 @@ class User(UserMixin, db.Model):
 
     def has_avatar(self) -> bool:
         return self.avatar_data is not None
+
+    # --- membership tiers ---------------------------------------------------
+    def is_creator(self) -> bool:
+        """Creator tier (or owner): all perks."""
+        return bool(self.is_admin or self.membership == "creator")
+
+    def is_member(self) -> bool:
+        """Healing or Creator (or owner): full community access."""
+        return bool(self.is_admin or self.membership in ("healing", "creator"))
+
+    def membership_label(self) -> str:
+        if self.is_admin:
+            return "Owner"
+        return MEMBERSHIP_LABELS.get(self.membership or "none", "Free")
 
     def goals(self) -> list:
         try:
@@ -185,6 +219,7 @@ class Product(db.Model):
     title = db.Column(db.String(160), nullable=False)
     slug = db.Column(db.String(160), unique=True, nullable=False)
     type = db.Column(db.String(20), nullable=False, default="course")
+    subject = db.Column(db.String(60))   # filterable catalogue subject
     status = db.Column(db.String(20), nullable=False, default="draft")
     featured = db.Column(db.Boolean, nullable=False, default=False)
     badge = db.Column(db.String(30))
@@ -338,6 +373,31 @@ class CheckIn(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     day = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+
+class Video(db.Model):
+    """An owner-uploaded video (Creator-membership perk). Bytes live in the DB
+    so they survive Render's ephemeral filesystem, like avatars/assets."""
+    __tablename__ = "videos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(160), nullable=False)
+    description = db.Column(db.Text)
+    filename = db.Column(db.String(255))
+    mime = db.Column(db.String(120), nullable=False)
+    size = db.Column(db.Integer, nullable=False, default=0)
+    data = db.Column(db.LargeBinary, nullable=False)
+    thumb_data = db.Column(db.LargeBinary)
+    thumb_mime = db.Column(db.String(40))
+    published = db.Column(db.Boolean, nullable=False, default=True)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+    def has_thumb(self) -> bool:
+        return self.thumb_data is not None
+
+    def size_mb(self):
+        return round((self.size or 0) / 1024 / 1024, 1)
 
 
 class Order(db.Model):

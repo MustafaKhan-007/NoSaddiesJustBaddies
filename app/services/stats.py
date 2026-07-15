@@ -5,7 +5,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import ForumPost, Order, PageView, Product, Subscriber, User
+from ..models import (ForumPost, Order, PageView, Product, Subscriber, User,
+                      Video)
 
 PAID_STATUSES = ("paid",)
 
@@ -148,6 +149,21 @@ def top_products(limit: int = 5):
     ).join(Order, Order.product_id == Product.id).filter(
         Order.status.in_(PAID_STATUSES)
     ).group_by(Product.id).order_by(func.count(Order.id).desc()).limit(limit).all()
+
+
+def membership_breakdown() -> dict:
+    rows = dict(db.session.query(User.membership, func.count(User.id))
+                .filter(User.deleted_at.is_(None)).group_by(User.membership).all())
+    return {
+        "none": rows.get("none", 0),
+        "healing": rows.get("healing", 0),
+        "creator": rows.get("creator", 0),
+        "total": sum(rows.values()),
+    }
+
+
+def video_count() -> int:
+    return db.session.query(func.count(Video.id)).scalar() or 0
 
 
 def most_visited(days: int = 7, limit: int = 10):

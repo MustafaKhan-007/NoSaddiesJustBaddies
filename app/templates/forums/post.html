@@ -4,7 +4,7 @@
 {% block title %}{{ post.title }} — Community — {{ site.site_title }}{% endblock %}
 
 {% macro like_button(action_url, count, liked) %}
-  {% if current_user.is_authenticated %}
+  {% if can_participate %}
   <form method="post" action="{{ action_url }}" class="like-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="next" value="{{ request.path }}#comments">
@@ -25,7 +25,7 @@
   <div class="forum-body">{{ c.body|nl2br }}</div>
   <div class="forum-actions">
     {{ like_button(url_for('forums.like_comment', comment_id=c.id), c.like_count(), c.id in liked_comments) }}
-    {% if not is_reply and current_user.is_authenticated and not current_user.forum_banned %}
+    {% if not is_reply and can_participate and not current_user.forum_banned %}
     <details class="reply-toggle">
       <summary>Reply</summary>
       <form method="post" action="{{ url_for('forums.create_comment', post_id=post.id) }}" class="comment-form comment-form--reply">
@@ -64,7 +64,7 @@
 
     <h2 id="comments">Comments ({{ comment_count }})</h2>
 
-    {% if current_user.is_authenticated and not current_user.forum_banned %}
+    {% if can_participate and not current_user.forum_banned %}
     <form method="post" action="{{ url_for('forums.create_comment', post_id=post.id) }}" class="comment-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="field">
@@ -79,6 +79,11 @@
     </form>
     {% elif current_user.is_authenticated and current_user.forum_banned %}
     <div class="flash flash--error">Commenting is paused for your account.</div>
+    {% elif current_user.is_authenticated %}
+    <div class="member-gate">
+      <p><strong>Want to reply?</strong> Joining the community with a Healing or Creator membership lets you comment and like.</p>
+      <a class="btn btn--primary btn--sm" href="{{ url_for('main.courses') }}">See memberships</a>
+    </div>
     {% else %}
     <p><a href="{{ url_for('auth.login', next=request.path) }}">Sign in</a> to comment.</p>
     {% endif %}
@@ -99,6 +104,12 @@
       <p>No comments yet. Kindness starts somewhere.</p>
       {% endfor %}
     </div>
+    {% if limited %}
+    <div class="member-gate member-gate--soft">
+      <p>You're seeing the first few comments. Members read every reply.</p>
+      <a class="btn btn--secondary btn--sm" href="{{ url_for('main.courses') }}">Unlock the community</a>
+    </div>
+    {% endif %}
   </div>
 </section>
 {% endblock %}

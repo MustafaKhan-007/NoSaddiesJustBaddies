@@ -9,6 +9,11 @@
     <div class="profile-card">
       {{ avatar(profile_user, 'xl') }}
       <h1>{{ profile_user.public_name() }}</h1>
+      {% if profile_user.membership == 'creator' or profile_user.is_admin %}
+      <span class="membership-pill membership-pill--creator">{{ profile_user.membership_label() }}</span>
+      {% elif profile_user.membership == 'healing' %}
+      <span class="membership-pill membership-pill--healing">Healing member</span>
+      {% endif %}
       {% if profile_user.bio %}<p class="profile-card__bio">{{ profile_user.bio }}</p>{% endif %}
 
       {% set shown = profile_badges(profile_user) %}

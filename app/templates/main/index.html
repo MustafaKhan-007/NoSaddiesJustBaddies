@@ -11,6 +11,12 @@
         <span class="hero-announcement__text">{{ announcement }}</span>
       </div>
       {% endif %}
+      {% if latest_video %}
+      <a class="hero-newvideo" href="{{ url_for('main.watch', video_id=latest_video.id) }}" data-rise="1">
+        <span class="hero-newvideo__spark" aria-hidden="true">&#9654;</span>
+        <span class="hero-newvideo__text">New in the video room: <strong>{{ latest_video.title }}</strong></span>
+      </a>
+      {% endif %}
       <p class="eyebrow" data-rise="1">A new chapter starts quietly</p>
       <h1 data-rise="2">Wherever you're starting from &mdash; even here &mdash; this is where it turns.</h1>
       <hr class="horizon-rule" data-rise="3">
@@ -44,6 +50,44 @@
       {% for product in featured %}
         {% include "partials/product_card.html" %}
       {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- 3b. Spotlight: Creator of the Month + Reel of the Week -->
+{% if creator_of_month or reel_of_week %}
+<section class="section section--band">
+  <div class="container">
+    <h2 class="text-center">This month's spotlight</h2>
+    <div class="spotlight-grid">
+      {% if creator_of_month %}
+      <article class="spotlight-card reveal">
+        <p class="eyebrow">Creator of the month</p>
+        {% if creator_of_month.image %}
+        <img class="spotlight-card__photo" src="{{ creator_of_month.image }}" alt="{{ creator_of_month.name }}" loading="lazy">
+        {% endif %}
+        <h3>{{ creator_of_month.name }}</h3>
+        {% if creator_of_month.blurb %}<p>{{ creator_of_month.blurb }}</p>{% endif %}
+        {% if creator_of_month.instagram %}
+        <a class="btn btn--primary btn--sm" href="{{ creator_of_month.instagram }}" target="_blank" rel="noopener">Visit on Instagram &rarr;</a>
+        {% endif %}
+      </article>
+      {% endif %}
+
+      {% if reel_of_week %}
+      <article class="spotlight-card spotlight-card--reel reveal">
+        <p class="eyebrow">Reel of the week</p>
+        {% if reel_of_week.embed %}
+        <div class="reel-embed">
+          <iframe src="{{ reel_of_week.embed }}" title="Reel of the week" allowfullscreen loading="lazy"
+                  scrolling="no" allowtransparency="true"></iframe>
+        </div>
+        {% endif %}
+        {% if reel_of_week.description %}<p>{{ reel_of_week.description }}</p>{% endif %}
+        <a class="btn btn--secondary btn--sm" href="{{ reel_of_week.url }}" target="_blank" rel="noopener">Watch on Instagram &rarr;</a>
+      </article>
+      {% endif %}
     </div>
   </div>
 </section>

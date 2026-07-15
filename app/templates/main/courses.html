@@ -8,10 +8,20 @@
     <p>Everything here was built for real weeks, not perfect ones.</p>
 
     <nav class="filter-tabs" aria-label="Filter by type">
-      <a href="{{ url_for('main.courses') }}" class="{{ 'active' if active_type == 'all' }}">All</a>
-      <a href="{{ url_for('main.courses', type='course') }}" class="{{ 'active' if active_type == 'course' }}">Courses</a>
-      <a href="{{ url_for('main.courses', type='guide') }}" class="{{ 'active' if active_type == 'guide' }}">Notebook Guides</a>
+      <a href="{{ url_for('main.courses', subject=active_subject) }}" class="{{ 'active' if active_type == 'all' }}">All</a>
+      <a href="{{ url_for('main.courses', type='course', subject=active_subject) }}" class="{{ 'active' if active_type == 'course' }}">Courses</a>
+      <a href="{{ url_for('main.courses', type='guide', subject=active_subject) }}" class="{{ 'active' if active_type == 'guide' }}">Notebook Guides</a>
     </nav>
+
+    {% if subjects %}
+    <nav class="filter-tabs filter-tabs--subjects" aria-label="Filter by subject">
+      <a href="{{ url_for('main.courses', type=active_type if active_type != 'all' else none) }}" class="{{ 'active' if not active_subject }}">All subjects</a>
+      {% for s in subjects %}
+      <a href="{{ url_for('main.courses', type=active_type if active_type != 'all' else none, subject=s) }}"
+         class="{{ 'active' if active_subject == s }}">{{ s }}</a>
+      {% endfor %}
+    </nav>
+    {% endif %}
 
     {% if products %}
       <div class="grid grid--3">

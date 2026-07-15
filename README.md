@@ -7,9 +7,16 @@ this site never touches card data and stores no files).
 
 What's inside:
 
-- Full catalog with filterable shop, rich product pages, and overlay checkout
+- Full catalog with filterable shop (by type **and** subject tabs), rich product
+  pages, and overlay checkout
 - On-site reader for purchased courses & guides: owners upload PDF/Word files,
   buyers read them online (PDFs embedded, .docx rendered inline) with no download
+- Membership tiers (Free / Healing / Creator) that gate the community, videos,
+  profile links, the spotlight, and the My Journey export
+- Owner-uploaded **video room** (Creator members only) with thumbnails, titles,
+  descriptions, and range-streamed playback (no downloads)
+- Home-page spotlight: **Creator of the Month** (links to Instagram) and an
+  embedded **Reel of the Week** with an owner note and a watch-on-Instagram link
 - Daily motivational quote with deterministic rotation and pinning
 - Daily "I showed up today" streaks and evolving SVG achievement badges
   (shown on profiles and next to names in the community)
@@ -248,12 +255,12 @@ PY
   defaults* button restores the originals. Titles/emblems/tier counts are fixed
   in code; only thresholds are editable, and phrases regenerate to match.
 
-## 4f. "My Journey" keepsake (premium export)
+## 4f. "My Journey" keepsake (Creator export)
 
-- Premium members (the owner, or anyone with a **paid** order — see
-  `is_premium()`) can download a designed **PDF keepsake** of their journey at
-  `/account/journey.pdf`: streak stats, the days they showed up, and every quote
-  they've favorited, closed with a warm line — made to keep, print, or share.
+- Creator members (and the owner) can download a designed **PDF keepsake** of
+  their journey at `/account/journey.pdf`: streak stats, the days they showed up,
+  and every quote they've favorited, closed with a warm line — made to keep,
+  print, or share. The gate is `is_premium()` → `user.is_creator()`.
 - Built with **fpdf2** (`app/services/journey.py`) — pure Python, no system
   libraries, so it deploys anywhere. Core PDF fonts are Latin-1 only, so all
   user text is transliterated first (`_t`). The layout uses the brand palette
@@ -262,6 +269,33 @@ PY
   written by `User.check_in()`); streak columns on `users` stay as the fast
   summary. `python scripts/journey_preview.py` renders a sample PDF (and PNG)
   to `instance/`.
+
+## 4g. Memberships, videos & the home spotlight
+
+- **Tiers** live on `users.membership` (`none` / `healing` / `creator`); the
+  owner is always treated as a Creator. Owner assigns tiers in **Studio →
+  Members** (`/admin/members`), which also shows a live count and a spotlight
+  pick-list of Creator members + their Instagram handles.
+  - **Free**: shop, quotes, announcements, badges; can *peek* at the community
+    (top 3 threads per forum, top 5 comments each) but can't post, reply or like.
+  - **Healing**: full community read + post/reply/like.
+  - **Creator**: everything in Healing, plus the video room, profile links,
+    the My Journey export, and eligibility for the home spotlight.
+  - Gating helpers: `User.is_member()` (Healing+) and `User.is_creator()`.
+- **Video room** (`/watch`, Creator-only): the owner uploads videos in **Studio
+  → Videos**. Files (and 16:9 thumbnails) are stored in the DB so they survive
+  Render deploys, validated in `app/services/videos.py`, and streamed with HTTP
+  **Range** support so `<video>` can seek. No download control is exposed. New
+  videos surface as a nudge on the Creator's home page.
+- **Profile links** are a Creator perk and are restricted to social platforms
+  (Instagram, TikTok, YouTube, Facebook, Snapchat, X, …). The platform label is
+  detected from the URL (`app/services/social.py`).
+- **Home spotlight** (Studio → Settings): *Creator of the Month* (name, photo,
+  blurb, Instagram link) and *Reel of the Week* — an Instagram reel URL is turned
+  into an embedded iframe (`instagram_embed_url`) with a watch-on-Instagram link
+  and an optional owner note. CSP allows `www.instagram.com` in `frame-src`.
+- **Subjects**: each course/guide can be filed under a subject; the catalogue
+  shows a second row of filter tabs for the subjects actually in use.
 
 ## 5. Security notes
 

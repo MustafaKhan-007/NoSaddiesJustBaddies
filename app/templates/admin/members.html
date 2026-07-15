@@ -1,0 +1,63 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Members{% endblock %}
+
+{% block content %}
+<h1>Members</h1>
+
+<div class="stat-row" style="margin-bottom: 20px;">
+  <div class="stat-chip"><span>{{ counts.get('none', 0) }}</span> Free</div>
+  <div class="stat-chip"><span>{{ counts.get('healing', 0) }}</span> Healing</div>
+  <div class="stat-chip"><span>{{ counts.get('creator', 0) }}</span> Creator</div>
+</div>
+
+<form method="get" class="member-search">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search by name or email">
+  <button class="btn btn--secondary btn--sm" type="submit">Search</button>
+</form>
+
+<table class="admin-table" style="margin-top: 16px;">
+  <thead>
+    <tr><th>Member</th><th>Email</th><th>Joined</th><th>Membership</th></tr>
+  </thead>
+  <tbody>
+    {% for m in people %}
+    <tr>
+      <td>{{ m.public_name() }}{% if m.is_admin %} <span class="status-pill">owner</span>{% endif %}</td>
+      <td>{{ m.email }}</td>
+      <td>{{ m.created_at.strftime('%b %d, %Y') }}</td>
+      <td>
+        <form class="inline-form" method="post" action="{{ url_for('admin.set_membership', user_id=m.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="q" value="{{ q }}">
+          <select name="membership" onchange="this.form.submit()" {{ 'disabled' if m.is_admin }}>
+            {% for tier in memberships %}
+            <option value="{{ tier }}" {{ 'selected' if m.membership == tier }}>{{ tier|capitalize }}</option>
+            {% endfor %}
+          </select>
+          <noscript><button class="btn btn--secondary btn--sm" type="submit">Set</button></noscript>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4">No members found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="admin-panel" style="margin-top: 28px;">
+  <h2 style="margin-top: 0;">Spotlight pick-list</h2>
+  <p class="field-help" style="margin-top: 0;">Creator members and their Instagram handles &mdash; choose one for Creator of the Month or Reel of the Week over in <a href="{{ url_for('admin.settings') }}">Settings</a>.</p>
+  {% if spotlight %}
+  <ul class="spotlight-list">
+    {% for c in spotlight %}
+    <li>
+      <strong>{{ c.name }}</strong> <span class="field-help">{{ c.email }}</span>
+      {% if c.instagram %}&mdash; <a href="{{ c.instagram }}" target="_blank" rel="noopener">{{ c.instagram }}</a>{% else %}&mdash; <span class="field-help">no Instagram link yet</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="field-help">No Creator members yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

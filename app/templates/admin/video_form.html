@@ -1,0 +1,54 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}{{ 'Edit' if video else 'Upload' }} video{% endblock %}
+
+{% block content %}
+<p class="eyebrow"><a href="{{ url_for('admin.videos') }}">&larr; Videos</a></p>
+<h1>{{ 'Edit video' if video else 'Upload a video' }}</h1>
+
+<form method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="admin-panel">
+    <div class="field">
+      <label for="title">Title</label>
+      <input type="text" id="title" name="title" required maxlength="160" value="{{ video.title if video else '' }}">
+    </div>
+    <div class="field">
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="4">{{ video.description if video else '' }}</textarea>
+    </div>
+
+    <div class="field">
+      <label for="video_file">Video file {% if video %}(leave blank to keep the current one){% endif %}</label>
+      <input type="file" id="video_file" name="video_file" accept="video/mp4,video/quicktime,video/webm,video/ogg">
+      <p class="field-help">MP4, MOV, WEBM or OGG, up to 128&nbsp;MB.{% if video %} Current file: {{ video.filename }} ({{ video.size_mb() }} MB).{% endif %}</p>
+    </div>
+
+    <div class="field">
+      <label for="thumb_file">Thumbnail image (optional)</label>
+      <input type="file" id="thumb_file" name="thumb_file" accept="image/*">
+      <p class="field-help">A 16:9 image looks best. We'll crop and resize it.</p>
+      {% if video and video.has_thumb() %}
+      <div style="margin-top: 10px;">
+        <img src="{{ url_for('main.video_thumb', video_id=video.id) }}" alt="Current thumbnail" style="width: 220px; border-radius: 10px; display: block;">
+        <label style="font-weight: 400; display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+          <input type="checkbox" name="remove_thumb" value="1" style="width: auto;"> Remove current thumbnail
+        </label>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="form-row">
+      <div class="field">
+        <label for="sort_order">Sort order</label>
+        <input type="number" id="sort_order" name="sort_order" value="{{ video.sort_order if video else 0 }}">
+      </div>
+      <div class="field">
+        <label style="font-weight: 400; display: flex; gap: 8px; align-items: center; margin-top: 30px;">
+          <input type="checkbox" name="published" value="1" style="width: auto;" {{ 'checked' if not video or video.published }}> Live (visible to Creator members)
+        </label>
+      </div>
+    </div>
+  </div>
+  <button class="btn btn--primary" type="submit">Save video</button>
+</form>
+{% endblock %}

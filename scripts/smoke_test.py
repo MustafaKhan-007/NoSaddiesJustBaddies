@@ -5,6 +5,7 @@ suite on purpose — a single readable script the owner/dev can run anywhere.
 """
 import hashlib
 import hmac
+import io
 import json
 import os
 import re
@@ -21,7 +22,8 @@ from app import create_app
 from app.config import DevConfig
 from app.extensions import db
 from app.models import (ForumCategory, ForumComment, ForumPost, ForumTag,
-                        Order, Quote, QuotePin, Subscriber, User, utcnow)
+                        Order, Product, Quote, QuotePin, Subscriber, User,
+                        Video, utcnow)
 
 TMP_DB = Path(tempfile.mkdtemp()) / "smoke.db"
 
@@ -234,6 +236,13 @@ ok("Dashboard filters by product", r.status_code == 200 and "Begin Again" in bod
 r = admin.get("/admin/?product=999")
 ok("Unknown product filter falls back to everything", r.status_code == 200)
 
+# give the main member a Creator membership: unlocks posting, profile links,
+# the video room, and the My Journey export
+with app.app_context():
+    m = User.query.filter_by(email="newperson@example.com").first()
+    m.membership = "creator"
+    db.session.commit()
+
 # --- 5. community forums + moderation + recommendations --------------------------
 today = date.today()
 with app.app_context():
@@ -319,6 +328,10 @@ sent_codes.clear()
 banclient.post("/register", data={"email": "rude@example.com", "password": USER_PW})
 bcode = sent_codes[-1][1]
 banclient.post("/verify-email", data={"email": "rude@example.com", "code": bcode})
+with app.app_context():
+    ru = User.query.filter_by(email="rude@example.com").first()
+    ru.membership = "healing"
+    db.session.commit()
 for _ in range(3):
     banclient.post("/forums/c/healing/new", data={"title": "fuck this", "body": "fuck"})
 with app.app_context():
@@ -465,10 +478,17 @@ with app.app_context():
 ok("Reset restores default milestones", reset_vals == B.default_thresholds("storyteller"),
    f"got {reset_vals}")
 
-# --- 5b5. My Journey keepsake (premium-gated PDF) ----------------------------
-# not premium yet -> gently redirected, no PDF
-r = client.get("/account/journey.pdf", follow_redirects=False)
-ok("Non-premium member can't export a journey",
+# --- 5b5. My Journey keepsake (Creator-gated PDF) ----------------------------
+# a fresh free member is gently redirected, no PDF
+free_client = app.test_client()
+with app.app_context():
+    fu = User(email="free@example.com", membership="none", email_verified_at=utcnow())
+    fu.set_password(USER_PW)
+    db.session.add(fu)
+    db.session.commit()
+free_client.post("/login", data={"email": "free@example.com", "password": USER_PW})
+r = free_client.get("/account/journey.pdf", follow_redirects=False)
+ok("Free member can't export a journey",
    r.status_code == 302 and "/account" in r.headers.get("Location", ""))
 
 # favorite a quote so the keepsake has something tender in it
@@ -476,21 +496,16 @@ with app.app_context():
     fav_qid = Quote.query.first().id
 client.post(f"/quotes/{fav_qid}/favorite", follow_redirects=True)
 
-# becoming premium (a paid order) unlocks the export
-with app.app_context():
-    db.session.add(Order(ls_order_id="JRN-1", ls_variant_id="123456",
-                         buyer_email="newperson@example.com", total_cents=4900,
-                         currency="USD", status="paid"))
-    db.session.commit()
+# newperson is a Creator member -> export unlocked
 r = client.get("/account/journey.pdf")
 pdf_data = r.get_data()
-ok("Premium member downloads a My Journey PDF",
+ok("Creator member downloads a My Journey PDF",
    r.status_code == 200 and r.mimetype == "application/pdf"
    and pdf_data[:5] == b"%PDF-" and len(pdf_data) > 1200
    and r.headers.get("Content-Disposition", "").startswith("attachment"))
 
 r = client.get("/account")
-ok("Account offers the keepsake to premium members",
+ok("Account offers the keepsake to Creator members",
    "Download my journey" in r.get_data(as_text=True))
 
 with app.app_context():
@@ -579,6 +594,87 @@ with app.app_context():
 ok("Remove announcement clears it", cleared_text == "")
 r = client.get("/")
 ok("No announcement markup after removal", "hero-announcement" not in r.get_data(as_text=True))
+
+# --- 5e. memberships, videos, subjects, spotlight ---------------------------
+# free member: posting blocked, reads gated
+r = free_client.post("/forums/c/healing/new",
+                     data={"title": "hi", "body": "can I post?"}, follow_redirects=False)
+ok("Free member is blocked from posting (redirected)", r.status_code == 302)
+with app.app_context():
+    free_posts = ForumPost.query.filter_by(title="hi").count()
+ok("Free member's post was not created", free_posts == 0)
+r = free_client.get("/forums/c/healing")
+ok("Free member sees the community gate", "member-gate" in r.get_data(as_text=True))
+
+# subjects: filterable catalogue tabs
+with app.app_context():
+    bp2 = Product.query.filter_by(slug="begin-again").first()
+    bp2.subject = "Healing"
+    db.session.commit()
+r = client.get("/courses")
+ok("Subject filter tab appears once a product has a subject",
+   "filter-tabs--subjects" in r.get_data(as_text=True))
+r = client.get("/courses?subject=Healing")
+ok("Subject filter keeps matching products", "Begin Again" in r.get_data(as_text=True))
+r = client.get("/courses?subject=Money")
+ok("Subject filter hides non-matching products", "Begin Again" not in r.get_data(as_text=True))
+
+# videos: owner uploads, Creator watches, free is blocked
+minimal_mp4 = b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 64
+r = admin.post("/admin/videos/new", data={
+    "title": "Morning pages walkthrough", "description": "How I use the notebook.",
+    "published": "1", "sort_order": "0",
+    "video_file": (io.BytesIO(minimal_mp4), "clip.mp4"),
+}, content_type="multipart/form-data", follow_redirects=True)
+ok("Owner uploads a video", "Video saved" in r.get_data(as_text=True))
+with app.app_context():
+    vid_id = Video.query.filter_by(title="Morning pages walkthrough").first().id
+
+r = free_client.get("/watch", follow_redirects=False)
+ok("Free member can't open the video room", r.status_code == 302)
+r = free_client.get(f"/watch/{vid_id}/stream")
+ok("Free member can't stream a video", r.status_code == 404)
+
+r = client.get("/watch")
+ok("Creator member sees the video room",
+   r.status_code == 200 and "Morning pages walkthrough" in r.get_data(as_text=True))
+r = client.get(f"/watch/{vid_id}")
+ok("Creator member opens a video page", r.status_code == 200)
+r = client.get(f"/watch/{vid_id}/stream", headers={"Range": "bytes=0-3"})
+ok("Video streams with range support (206 partial)",
+   r.status_code == 206 and r.headers.get("Accept-Ranges") == "bytes"
+   and "Content-Range" in r.headers)
+
+r = admin.post("/admin/videos/new", data={
+    "title": "Bad file", "video_file": (io.BytesIO(b"nope"), "notes.txt"),
+}, content_type="multipart/form-data", follow_redirects=True)
+ok("Non-video upload is rejected", "MP4" in r.get_data(as_text=True))
+
+# home spotlight: creator of the month + reel of the week
+reel_url = "https://www.instagram.com/reel/ABC123xyz/"
+spotlight_settings = {"site_title": "First Light", "instagram_url": "",
+                      "hero_image_url": "", "portrait_url": "", "contact_email": "",
+                      "creator_name": "Maya R.",
+                      "creator_instagram": "https://instagram.com/mayar",
+                      "creator_blurb": "Rebuilt her mornings.",
+                      "reel_url": reel_url, "reel_description": "Loved this one."}
+admin.post("/admin/settings", data=spotlight_settings, follow_redirects=True)
+r = client.get("/")
+hbody = r.get_data(as_text=True)
+ok("Creator of the month shows on home", "Maya R." in hbody and "instagram.com/mayar" in hbody)
+ok("Reel of the week embeds + links out",
+   "instagram.com/reel/ABC123xyz/embed" in hbody and "Watch on Instagram" in hbody)
+
+# studio: members management
+r = admin.get("/admin/members")
+ok("Members page lists memberships", r.status_code == 200 and "Creator" in r.get_data(as_text=True))
+with app.app_context():
+    free_uid = User.query.filter_by(email="free@example.com").first().id
+admin.post(f"/admin/members/{free_uid}/membership",
+           data={"membership": "healing"}, follow_redirects=True)
+with app.app_context():
+    new_tier = User.query.filter_by(email="free@example.com").first().membership
+ok("Owner can grant a membership", new_tier == "healing", f"got {new_tier}")
 
 # --- 6. quote pinning + bulk import dedupe ----------------------------------------
 with app.app_context():

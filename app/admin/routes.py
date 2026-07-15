@@ -20,9 +20,10 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import (FaqItem, ForumComment, ForumPost, Order, Page, Product,
-                      ProductAsset, Quote, QuoteFavorite, QuotePin, Subscriber,
-                      Testimonial, User, QUOTE_CATEGORIES)
+from ..models import (FaqItem, ForumComment, ForumPost, MEMBERSHIPS, Order, Page,
+                      Product, PRODUCT_SUBJECTS, ProductAsset, Quote,
+                      QuoteFavorite, QuotePin, Subscriber, Testimonial, User,
+                      Video, QUOTE_CATEGORIES)
 from ..services import badges as badges_service
 from ..services import quotes as quotes_service
 from ..services import stats
@@ -30,6 +31,8 @@ from ..services.assets import AssetError, process_asset
 from ..services.lemonsqueezy import sync_recent_orders
 from ..services.settings import DEFAULTS as SETTING_DEFAULTS
 from ..services.settings import all_settings, set_setting
+from ..services.social import platform_for
+from ..services.videos import VideoError, process_thumb, process_video
 from . import bp
 
 log = logging.getLogger(__name__)
@@ -64,6 +67,23 @@ def slugify(text: str) -> str:
     return slug[:150] or "item"
 
 
+def _spotlight_candidates():
+    """Creator members with an Instagram link — the owner's pick-list for the
+    Creator of the Month / Reel of the Week features."""
+    creators = (User.query.filter(User.membership == "creator",
+                                   User.deleted_at.is_(None))
+                .order_by(User.display_name).all())
+    out = []
+    for u in creators:
+        handle = None
+        for link in u.links():
+            if platform_for(link["url"]) == "Instagram":
+                handle = link["url"]
+                break
+        out.append({"name": u.public_name(), "email": u.email, "instagram": handle})
+    return out
+
+
 # =============================== DASHBOARD ===================================
 
 @bp.route("/")
@@ -92,6 +112,8 @@ def dashboard():
         recent_orders=stats.recent_orders(10, product_id),
         top_products=stats.top_products(5),
         most_visited=stats.most_visited(7),
+        memberships=stats.membership_breakdown(),
+        video_count=stats.video_count(),
     )
 
 
@@ -143,6 +165,8 @@ def _product_from_form(product: Product, form) -> list[str]:
 
     if form.get("type") in ("course", "guide"):
         product.type = form.get("type")
+    subject = (form.get("subject") or "").strip()
+    product.subject = subject if subject in PRODUCT_SUBJECTS else None
     product.featured = bool(form.get("featured"))
     product.badge = (form.get("badge") or "").strip()[:30] or None
     try:
@@ -279,7 +303,8 @@ def product_form(product_id=None):
         except ValueError:
             pass
     return render_template("admin/product_form.html", product=product,
-                           curriculum=curriculum, gallery=gallery)
+                           curriculum=curriculum, gallery=gallery,
+                           subjects=PRODUCT_SUBJECTS)
 
 
 @bp.route("/products/<int:product_id>/delete", methods=["POST"])
@@ -668,7 +693,124 @@ def settings():
             set_setting(key, (request.form.get(key) or "").strip())
         flash("Settings saved.", "success")
         return redirect(url_for("admin.settings"))
-    return render_template("admin/settings.html", values=all_settings())
+    return render_template("admin/settings.html", values=all_settings(),
+                           spotlight=_spotlight_candidates())
+
+
+# =============================== VIDEOS ======================================
+
+@bp.route("/videos")
+@admin_required
+def videos():
+    items = Video.query.order_by(Video.sort_order, Video.created_at.desc()).all()
+    return render_template("admin/videos.html", videos=items)
+
+
+@bp.route("/videos/new", methods=["GET", "POST"])
+@bp.route("/videos/<int:video_id>/edit", methods=["GET", "POST"])
+@admin_required
+def video_form(video_id=None):
+    video = db.session.get(Video, video_id) if video_id else None
+    if video_id and video is None:
+        abort(404)
+
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()[:160]
+        description = (request.form.get("description") or "").strip() or None
+        published = bool(request.form.get("published"))
+        try:
+            sort_order = int(request.form.get("sort_order") or 0)
+        except ValueError:
+            sort_order = 0
+
+        errors = []
+        if not title:
+            errors.append("A title is required.")
+
+        new_video = None
+        upload = request.files.get("video_file")
+        if upload and upload.filename:
+            try:
+                new_video = process_video(upload)
+            except VideoError as exc:
+                errors.append(str(exc))
+        elif video is None:
+            errors.append("Please choose a video file to upload.")
+
+        new_thumb = None
+        thumb = request.files.get("thumb_file")
+        if thumb and thumb.filename:
+            try:
+                new_thumb = process_thumb(thumb)
+            except VideoError as exc:
+                errors.append(str(exc))
+
+        if errors:
+            for e in errors:
+                flash(e, "error")
+        else:
+            if video is None:
+                video = Video(mime="video/mp4", data=b"")
+                db.session.add(video)
+            video.title = title
+            video.description = description
+            video.published = published
+            video.sort_order = sort_order
+            if new_video:
+                data, mime, fname = new_video
+                video.data, video.mime, video.filename = data, mime, fname
+                video.size = len(data)
+            if new_thumb:
+                video.thumb_data, video.thumb_mime = new_thumb
+            if request.form.get("remove_thumb"):
+                video.thumb_data = None
+                video.thumb_mime = None
+            db.session.commit()
+            flash("Video saved.", "success")
+            return redirect(url_for("admin.videos"))
+
+    return render_template("admin/video_form.html", video=video)
+
+
+@bp.route("/videos/<int:video_id>/delete", methods=["POST"])
+@admin_required
+def video_delete(video_id):
+    video = db.session.get(Video, video_id) or abort(404)
+    db.session.delete(video)
+    db.session.commit()
+    flash("Video deleted.", "success")
+    return redirect(url_for("admin.videos"))
+
+
+# =============================== MEMBERS =====================================
+
+@bp.route("/members")
+@admin_required
+def members():
+    q = (request.args.get("q") or "").strip()
+    query = User.query.filter(User.deleted_at.is_(None))
+    if q:
+        like = f"%{q}%"
+        query = query.filter(db.or_(User.email.ilike(like),
+                                    User.display_name.ilike(like)))
+    people = query.order_by(User.created_at.desc()).limit(200).all()
+    counts = dict(db.session.query(User.membership, func.count(User.id))
+                  .filter(User.deleted_at.is_(None)).group_by(User.membership).all())
+    return render_template("admin/members.html", people=people, counts=counts,
+                           memberships=MEMBERSHIPS, q=q,
+                           spotlight=_spotlight_candidates())
+
+
+@bp.route("/members/<int:user_id>/membership", methods=["POST"])
+@admin_required
+def set_membership(user_id):
+    member = db.session.get(User, user_id) or abort(404)
+    tier = request.form.get("membership")
+    if tier in MEMBERSHIPS:
+        member.membership = tier
+        db.session.commit()
+        flash(f"{member.public_name()} \u2192 {member.membership_label()}.", "success")
+    return redirect(request.form.get("next") or url_for("admin.members"))
 
 
 # ================================ BADGES =====================================

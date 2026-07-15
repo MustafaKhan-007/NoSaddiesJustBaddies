@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ video.title }} — Video room — {{ site.site_title }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container" style="max-width: 900px;">
+    <p class="eyebrow"><a href="{{ url_for('main.videos') }}">&larr; Video room</a></p>
+
+    <div class="video-player">
+      <video controls playsinline preload="metadata"
+             {% if video.has_thumb() %}poster="{{ url_for('main.video_thumb', video_id=video.id) }}"{% endif %}
+             controlslist="nodownload" oncontextmenu="return false;">
+        <source src="{{ url_for('main.video_stream', video_id=video.id) }}" type="{{ video.mime }}">
+        Your browser can't play this video.
+      </video>
+    </div>
+
+    <h1>{{ video.title }}</h1>
+    <p style="color: var(--ink-soft);">{{ video.created_at.strftime('%B %d, %Y') }}</p>
+    {% if video.description %}
+    <div class="forum-body">{{ video.description|nl2br }}</div>
+    {% endif %}
+
+    {% if more %}
+    <h2 style="margin-top: 48px;">More to watch</h2>
+    <div class="video-grid">
+      {% for v in more %}
+      <a class="video-card" href="{{ url_for('main.watch', video_id=v.id) }}">
+        <div class="video-card__thumb">
+          {% if v.has_thumb() %}
+          <img src="{{ url_for('main.video_thumb', video_id=v.id) }}" alt="" loading="lazy">
+          {% else %}
+          <span class="video-card__play" aria-hidden="true">&#9654;</span>
+          {% endif %}
+        </div>
+        <div class="video-card__body">
+          <h3>{{ v.title }}</h3>
+          <span class="video-card__date">{{ v.created_at.strftime('%b %d, %Y') }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

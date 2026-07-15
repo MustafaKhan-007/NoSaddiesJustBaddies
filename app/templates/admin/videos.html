@@ -1,0 +1,43 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Videos{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Videos</h1>
+  <a class="btn btn--primary btn--sm" href="{{ url_for('admin.video_form') }}">Upload video</a>
+</div>
+<p class="field-help" style="margin-top: 0;">Only Creator members can watch these. Videos stream from the site &mdash; no downloads.</p>
+
+<table class="admin-table">
+  <thead>
+    <tr><th></th><th>Title</th><th>Size</th><th>Status</th><th>Added</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for v in videos %}
+    <tr>
+      <td style="width: 120px;">
+        {% if v.has_thumb() %}
+        <img src="{{ url_for('main.video_thumb', video_id=v.id) }}" alt="" style="width: 110px; border-radius: 8px; display: block;">
+        {% else %}
+        <span class="field-help">no thumb</span>
+        {% endif %}
+      </td>
+      <td><a href="{{ url_for('admin.video_form', video_id=v.id) }}">{{ v.title }}</a></td>
+      <td>{{ v.size_mb() }} MB</td>
+      <td><span class="status-pill status-pill--{{ 'published' if v.published else 'draft' }}">{{ 'live' if v.published else 'hidden' }}</span></td>
+      <td>{{ v.created_at.strftime('%b %d, %Y') }}</td>
+      <td style="white-space: nowrap;">
+        <a class="btn btn--secondary btn--sm" href="{{ url_for('admin.video_form', video_id=v.id) }}">Edit</a>
+        <form class="inline-form" method="post" action="{{ url_for('admin.video_delete', video_id=v.id) }}"
+              data-confirm="Delete '{{ v.title }}'? This can't be undone.">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn--danger btn--sm" type="submit">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6">No videos yet &mdash; upload the first one.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -35,6 +35,16 @@
         </select>
       </div>
       <div class="field">
+        <label for="subject">Subject (filter tab)</label>
+        <select id="subject" name="subject">
+          <option value="">&mdash; none &mdash;</option>
+          {% for s in subjects %}
+          <option value="{{ s }}" {{ 'selected' if product.subject == s }}>{{ s }}</option>
+          {% endfor %}
+        </select>
+        <p class="field-help">Groups this into a filter tab on the catalogue.</p>
+      </div>
+      <div class="field">
         <label for="status">Status</label>
         <select id="status" name="status">
           <option value="draft" {{ 'selected' if product.status == 'draft' }}>Draft</option>

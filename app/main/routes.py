@@ -11,16 +11,19 @@ from flask_login import current_user, login_required
 from ..extensions import db, limiter
 from sqlalchemy import func
 
-from ..models import (ContactMessage, FaqItem, Order, Page, Product,
-                      ProductAsset, Quote, QuoteFavorite, Subscriber,
-                      Testimonial, User, utcnow)
+from ..models import (PRODUCT_SUBJECTS, ContactMessage, FaqItem, Order, Page,
+                      Product, ProductAsset, Quote, QuoteFavorite, Subscriber,
+                      Testimonial, User, Video, utcnow)
 from ..services import quotes as quotes_service
+from ..services import settings as settings_service
 from ..services.assets import docx_to_html
 from ..services.avatars import AvatarError, process_avatar
 from ..services.badges import CATEGORIES, category_progress, earned_badges
 from ..services.journey import build_journey_pdf
 from ..services.mailer import send_contact_notification
 from ..services.recommend import INTENTS, recommend_products, valid_intent_keys
+from ..services.social import (ALLOWED_LABELS, clean_social_links,
+                               instagram_embed_url)
 from . import bp
 
 log = logging.getLogger(__name__)
@@ -80,6 +83,36 @@ def _quote_context():
     return ctx
 
 
+def _spotlight_context():
+    """Creator of the Month + Reel of the Week, straight from site settings."""
+    site = settings_service.all_settings()
+    creator = None
+    if (site.get("creator_name") or "").strip():
+        creator = {
+            "name": site["creator_name"].strip(),
+            "instagram": (site.get("creator_instagram") or "").strip(),
+            "image": (site.get("creator_image_url") or "").strip(),
+            "blurb": (site.get("creator_blurb") or "").strip(),
+        }
+    reel = None
+    reel_url = (site.get("reel_url") or "").strip()
+    if reel_url:
+        reel = {
+            "url": reel_url,
+            "embed": instagram_embed_url(reel_url),
+            "description": (site.get("reel_description") or "").strip(),
+        }
+    return {"creator_of_month": creator, "reel_of_week": reel}
+
+
+def _video_notice():
+    """The newest published video — creator members see a home-page nudge."""
+    if not (getattr(current_user, "is_authenticated", False) and current_user.is_creator()):
+        return None
+    return (Video.query.filter_by(published=True)
+            .order_by(Video.sort_order, Video.created_at.desc()).first())
+
+
 @bp.route("/")
 def index():
     featured = (_published_products().filter_by(featured=True)
@@ -91,6 +124,8 @@ def index():
         featured=featured,
         testimonials=testimonials or SEED_TESTIMONIALS,
         testimonials_are_models=bool(testimonials),
+        latest_video=_video_notice(),
+        **_spotlight_context(),
         **_quote_context(),
     )
 
@@ -105,8 +140,22 @@ def courses():
         query = query.filter_by(type="guide")
     else:
         ptype = "all"
+
+    # subjects that actually have published products, in the canonical order
+    used = {s for (s,) in db.session.query(Product.subject)
+            .filter(Product.status == "published", Product.subject.isnot(None))
+            .distinct().all() if s}
+    subjects = [s for s in PRODUCT_SUBJECTS if s in used]
+
+    active_subject = request.args.get("subject")
+    if active_subject and active_subject in PRODUCT_SUBJECTS:
+        query = query.filter(Product.subject == active_subject)
+    else:
+        active_subject = None
+
     products = query.order_by(Product.sort_order, Product.created_at.desc()).all()
-    return render_template("main/courses.html", products=products, active_type=ptype)
+    return render_template("main/courses.html", products=products, active_type=ptype,
+                           subjects=subjects, active_subject=active_subject)
 
 
 @bp.route("/courses/<slug>")
@@ -212,6 +261,8 @@ def settings():
                            user_goals=set(current_user.goals()),
                            links=current_user.links(),
                            link_max=PROFILE_LINK_MAX,
+                           can_link=current_user.is_creator(),
+                           allowed_platforms=ALLOWED_LABELS,
                            badge_progress=category_progress(current_user),
                            chosen_badges=set(current_user.displayed_badges()))
 
@@ -244,7 +295,9 @@ def update_profile():
     current_user.bio = bio or None
     current_user.default_anonymous = request.form.get("default_anonymous") == "1"
     current_user.set_goals(valid_intent_keys(request.form.getlist("goals")))
-    current_user.set_links(_collect_profile_links(request.form))
+    # profile links are a Creator perk, and only social platforms are allowed
+    if current_user.is_creator():
+        current_user.set_links(clean_social_links(_collect_profile_links(request.form)))
     current_user.set_displayed_badges(_valid_badge_choices(request.form.getlist("badges_display")))
 
     if request.form.get("remove_avatar") == "1":
@@ -306,15 +359,8 @@ def _owned_products(user):
 
 
 def is_premium(user) -> bool:
-    """A premium member: the owner, or anyone with at least one paid order."""
-    if not getattr(user, "is_authenticated", False):
-        return False
-    if user.is_admin:
-        return True
-    return db.session.query(Order.id).filter(
-        Order.status == "paid",
-        func.lower(Order.buyer_email) == (user.email or "").lower(),
-    ).first() is not None
+    """My Journey + profile links are a Creator-membership perk (or owner)."""
+    return bool(getattr(user, "is_authenticated", False) and user.is_creator())
 
 
 @bp.route("/library/<slug>")
@@ -356,6 +402,98 @@ def library_asset(slug, asset_id):
     resp.headers["Cache-Control"] = "private, no-store"
     resp.headers["X-Content-Type-Options"] = "nosniff"
     return resp
+
+
+# --- videos (Creator-membership perk) --------------------------------------
+
+def _require_creator():
+    """Flash + redirect if the current user isn't a Creator member; else None."""
+    if not (getattr(current_user, "is_authenticated", False) and current_user.is_creator()):
+        flash("The video room is a Creator-membership perk \u2014 it's waiting when "
+              "you're ready.", "info")
+        return redirect(url_for("main.courses"))
+    return None
+
+
+@bp.route("/watch")
+@login_required
+def videos():
+    guard = _require_creator()
+    if guard:
+        return guard
+    items = (Video.query.filter_by(published=True)
+             .order_by(Video.sort_order, Video.created_at.desc()).all())
+    return render_template("main/videos.html", videos=items)
+
+
+@bp.route("/watch/<int:video_id>")
+@login_required
+def watch(video_id):
+    guard = _require_creator()
+    if guard:
+        return guard
+    video = db.session.get(Video, video_id)
+    if video is None or not video.published:
+        abort(404)
+    more = (Video.query.filter(Video.published.is_(True), Video.id != video.id)
+            .order_by(Video.sort_order, Video.created_at.desc()).limit(6).all())
+    return render_template("main/watch.html", video=video, more=more)
+
+
+@bp.route("/watch/<int:video_id>/thumb")
+@login_required
+def video_thumb(video_id):
+    if not (current_user.is_authenticated and current_user.is_creator()):
+        abort(404)
+    video = db.session.get(Video, video_id)
+    if video is None or not video.thumb_data:
+        abort(404)
+    resp = Response(bytes(video.thumb_data), mimetype=video.thumb_mime or "image/jpeg")
+    resp.headers["Cache-Control"] = "private, max-age=86400"
+    return resp
+
+
+def _range_response(data, mime, filename):
+    """Serve bytes with HTTP Range support so <video> can seek."""
+    length = len(data)
+    range_header = request.headers.get("Range")
+    if not range_header:
+        resp = Response(data, mimetype=mime)
+        resp.headers["Accept-Ranges"] = "bytes"
+        resp.headers["Content-Length"] = str(length)
+        resp.headers["Cache-Control"] = "private, no-store"
+        return resp
+    m = re.match(r"bytes=(\d*)-(\d*)", range_header)
+    start, end = 0, length - 1
+    if m:
+        if m.group(1):
+            start = int(m.group(1))
+        if m.group(2):
+            end = int(m.group(2))
+    start = max(0, start)
+    end = min(end, length - 1)
+    if start > end:
+        resp = Response(status=416)
+        resp.headers["Content-Range"] = f"bytes */{length}"
+        return resp
+    chunk = data[start:end + 1]
+    resp = Response(chunk, status=206, mimetype=mime)
+    resp.headers["Content-Range"] = f"bytes {start}-{end}/{length}"
+    resp.headers["Accept-Ranges"] = "bytes"
+    resp.headers["Content-Length"] = str(len(chunk))
+    resp.headers["Cache-Control"] = "private, no-store"
+    return resp
+
+
+@bp.route("/watch/<int:video_id>/stream")
+@login_required
+def video_stream(video_id):
+    if not (current_user.is_authenticated and current_user.is_creator()):
+        abort(404)
+    video = db.session.get(Video, video_id)
+    if video is None or not video.published:
+        abort(404)
+    return _range_response(bytes(video.data), video.mime, video.filename or "video")
 
 
 @bp.route("/account/password", methods=["GET", "POST"])

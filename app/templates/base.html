@@ -22,6 +22,9 @@
         <a href="{{ url_for('main.about') }}" {% if request.path == '/about' %}aria-current="page"{% endif %}>My story</a>
         <a href="{{ url_for('main.quotes') }}" {% if request.path == '/quotes' %}aria-current="page"{% endif %}>Daily quotes</a>
         <a href="{{ url_for('forums.index') }}" {% if request.path.startswith('/forums') %}aria-current="page"{% endif %}>Community</a>
+        {% if current_user.is_authenticated and current_user.is_creator() %}
+          <a href="{{ url_for('main.videos') }}" {% if request.path.startswith('/watch') %}aria-current="page"{% endif %}>Video room</a>
+        {% endif %}
         <a href="{{ url_for('main.faq') }}" {% if request.path == '/faq' %}aria-current="page"{% endif %}>FAQ</a>
         {% if current_user.is_authenticated %}
           <a href="{{ url_for('main.account') }}" {% if request.path == '/account' %}aria-current="page"{% endif %}>My space</a>
@@ -41,6 +44,9 @@
       <a href="{{ url_for('main.about') }}">My story</a>
       <a href="{{ url_for('main.quotes') }}">Daily quotes</a>
       <a href="{{ url_for('forums.index') }}">Community</a>
+      {% if current_user.is_authenticated and current_user.is_creator() %}
+        <a href="{{ url_for('main.videos') }}">Video room</a>
+      {% endif %}
       <a href="{{ url_for('main.faq') }}">FAQ</a>
       {% if current_user.is_authenticated %}
         <a href="{{ url_for('main.account') }}">My space</a>

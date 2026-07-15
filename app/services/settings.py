@@ -16,6 +16,13 @@ DEFAULTS = {
     "contact_email": "",
     "announcement_text": "",
     "announcement_expires": "",   # ISO date (YYYY-MM-DD); blank = never expires
+    # home-page spotlight
+    "creator_name": "",
+    "creator_instagram": "",
+    "creator_image_url": "",
+    "creator_blurb": "",
+    "reel_url": "",
+    "reel_description": "",
 }
 
 _cache: dict[str, str] = {}

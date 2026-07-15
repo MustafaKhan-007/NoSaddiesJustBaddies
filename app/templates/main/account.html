@@ -9,7 +9,16 @@
     <div class="account-head">
       <div class="account-head__who">
         {{ avatar(current_user, 'lg') }}
-        <h1>{{ greeting }}{% if current_user.first_name() %}, {{ current_user.first_name() }}{% endif %}.</h1>
+        <div>
+          <h1>{{ greeting }}{% if current_user.first_name() %}, {{ current_user.first_name() }}{% endif %}.</h1>
+          {% if current_user.is_admin %}
+          <span class="membership-pill membership-pill--creator">Owner</span>
+          {% elif current_user.membership == 'creator' %}
+          <span class="membership-pill membership-pill--creator">Creator member</span>
+          {% elif current_user.membership == 'healing' %}
+          <span class="membership-pill membership-pill--healing">Healing member</span>
+          {% endif %}
+        </div>
       </div>
       <div class="account-head__actions">
         <a class="btn btn--secondary btn--sm" href="{{ url_for('main.settings') }}">Settings</a>
@@ -68,10 +77,10 @@
           how far you've come.</p>
         <a class="btn btn--primary" href="{{ url_for('main.journey_pdf') }}">Download my journey (PDF)</a>
         {% else %}
-        <p>Members who've joined a course or guide can generate a keepsake PDF of their
-          whole journey &mdash; streaks, check-ins, and favorite lines. It'll be here
-          waiting when you're ready.</p>
-        <a class="btn btn--secondary" href="{{ url_for('main.courses') }}">See what's on the shelf</a>
+        <p>Creator members can generate a keepsake PDF of their whole journey
+          &mdash; streaks, check-ins, and favorite lines. It'll be here waiting
+          when you're ready.</p>
+        <a class="btn btn--secondary" href="{{ url_for('main.courses') }}">See memberships</a>
         {% endif %}
       </div>
       <div class="journey-card__mark" aria-hidden="true">&#10022;</div>

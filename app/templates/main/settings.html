@@ -46,19 +46,25 @@
                   placeholder="Optional — a sentence or two.">{{ current_user.bio or '' }}</textarea>
       </div>
 
+      {% if can_link %}
       <fieldset class="link-fields">
-        <legend>Your links</legend>
-        <p class="field-help">Add your Instagram, your own courses, a website &mdash; anything you'd like people to find. Shown on your public profile.</p>
+        <legend>Your social links</legend>
+        <p class="field-help">Add your social handles &mdash; {{ allowed_platforms|join(', ') }}. We detect the platform from the link, so just paste the URL. Shown on your public profile.</p>
         {% for i in range(link_max) %}
         {% set existing = links[i] if i < links|length else None %}
         <div class="link-row">
-          <input type="text" name="link_label_{{ i }}" maxlength="40"
-                 value="{{ existing.label if existing else '' }}" placeholder="Label (e.g. Instagram)">
           <input type="url" name="link_url_{{ i }}" maxlength="300"
-                 value="{{ existing.url if existing else '' }}" placeholder="https://...">
+                 value="{{ existing.url if existing else '' }}" placeholder="https://instagram.com/yourhandle">
         </div>
         {% endfor %}
       </fieldset>
+      {% else %}
+      <fieldset class="link-fields link-fields--locked">
+        <legend>Your social links</legend>
+        <p class="field-help">Adding social links to your profile is a <strong>Creator membership</strong> perk. Upgrade to share your Instagram, TikTok and more.</p>
+        <a class="btn btn--secondary btn--sm" href="{{ url_for('main.courses') }}">See memberships</a>
+      </fieldset>
+      {% endif %}
 
       <fieldset class="intent-picker">
         <legend>What brings you here?</legend>

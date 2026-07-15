@@ -44,6 +44,60 @@
       </div>
     </div>
   </div>
+
+  <h2 style="margin-top: 32px;">Home spotlight</h2>
+  <div class="admin-panel">
+    <p class="field-help" style="margin-top: 0;">These show on the home page. Leave the name / reel blank to hide a spotlight.</p>
+    <fieldset class="spotlight-fieldset">
+      <legend>Creator of the month</legend>
+      <div class="form-row">
+        <div class="field">
+          <label for="creator_name">Name</label>
+          <input type="text" id="creator_name" name="creator_name" value="{{ values.creator_name }}">
+        </div>
+        <div class="field">
+          <label for="creator_instagram">Instagram URL</label>
+          <input type="url" id="creator_instagram" name="creator_instagram" value="{{ values.creator_instagram }}" placeholder="https://instagram.com/...">
+        </div>
+      </div>
+      <div class="field">
+        <label for="creator_image_url">Photo URL (optional)</label>
+        <input type="url" id="creator_image_url" name="creator_image_url" value="{{ values.creator_image_url }}" placeholder="https://...">
+      </div>
+      <div class="field">
+        <label for="creator_blurb">A line about them (optional)</label>
+        <input type="text" id="creator_blurb" name="creator_blurb" value="{{ values.creator_blurb }}">
+      </div>
+    </fieldset>
+    <fieldset class="spotlight-fieldset">
+      <legend>Reel of the week</legend>
+      <div class="field">
+        <label for="reel_url">Instagram reel URL</label>
+        <input type="url" id="reel_url" name="reel_url" value="{{ values.reel_url }}" placeholder="https://instagram.com/reel/...">
+        <p class="field-help">We embed it automatically and add a "Watch on Instagram" button.</p>
+      </div>
+      <div class="field">
+        <label for="reel_description">Why you love it (optional)</label>
+        <input type="text" id="reel_description" name="reel_description" value="{{ values.reel_description }}">
+      </div>
+    </fieldset>
+
+    {% if spotlight %}
+    <div class="spotlight-candidates">
+      <h3>Creator members to feature</h3>
+      <p class="field-help" style="margin-top: 0;">Creator-tier members and their Instagram handles &mdash; copy one into the fields above.</p>
+      <ul>
+        {% for c in spotlight %}
+        <li>
+          <strong>{{ c.name }}</strong>
+          {% if c.instagram %}&mdash; <a href="{{ c.instagram }}" target="_blank" rel="noopener">{{ c.instagram }}</a>{% else %}<span class="field-help">(no Instagram link yet)</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
   <button class="btn btn--primary" type="submit">Save settings</button>
 </form>
 

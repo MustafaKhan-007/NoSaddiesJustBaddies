@@ -19,7 +19,7 @@
     </div>
     {% endif %}
 
-    {% if current_user.is_authenticated and not current_user.forum_banned %}
+    {% if can_participate and not current_user.forum_banned %}
     <details class="new-post" {% if request.args.get('compose') %}open{% endif %}>
       <summary class="btn btn--primary btn--sm">Start a conversation</summary>
       <form method="post" action="{{ url_for('forums.create_post', slug=category.slug) }}" style="margin-top: 16px;">
@@ -53,6 +53,11 @@
     </details>
     {% elif current_user.is_authenticated and current_user.forum_banned %}
     <div class="flash flash--error">Posting is paused for your account. You can still read along.</div>
+    {% elif current_user.is_authenticated %}
+    <div class="member-gate">
+      <p><strong>You're peeking at the community.</strong> A Healing or Creator membership lets you post, reply and read every thread.</p>
+      <a class="btn btn--primary btn--sm" href="{{ url_for('main.courses') }}">See memberships</a>
+    </div>
     {% else %}
     <p><a href="{{ url_for('auth.login', next=request.path) }}">Sign in</a> to join the conversation.</p>
     {% endif %}
@@ -73,6 +78,12 @@
       <p>No posts here yet &mdash; be the first gentle voice{% if active_tag %} on {{ active_tag.name }}{% endif %}.</p>
       {% endfor %}
     </div>
+    {% if limited %}
+    <div class="member-gate member-gate--soft">
+      <p>Showing a few recent threads. Members see the whole conversation.</p>
+      <a class="btn btn--secondary btn--sm" href="{{ url_for('main.courses') }}">Unlock the community</a>
+    </div>
+    {% endif %}
   </div>
 </section>
 {% endblock %}

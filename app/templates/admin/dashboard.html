@@ -66,6 +66,16 @@
     <div class="label">Forum posts (30d)</div>
     <div class="value">{{ cards.forum_posts }}</div>
   </div>
+  <div class="stat-card">
+    <div class="label">Members (Healing / Creator)</div>
+    <div class="value">{{ memberships.healing }} / {{ memberships.creator }}</div>
+    <span class="delta">{{ memberships.none }} free &middot; {{ memberships.total }} total</span>
+  </div>
+  <div class="stat-card">
+    <div class="label">Videos</div>
+    <div class="value">{{ video_count }}</div>
+    <span class="delta"><a href="{{ url_for('admin.videos') }}">Manage &rarr;</a></span>
+  </div>
 </div>
 
 <div class="admin-panel" style="border-left: 4px solid var(--gold);">

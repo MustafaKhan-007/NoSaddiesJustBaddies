@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Video room — {{ site.site_title }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <p class="eyebrow">Creator members only</p>
+    <h1>The video room</h1>
+    <p style="color: var(--ink-soft); max-width: 60ch;">Longer-form videos, made just for you. Watch here whenever you need them &mdash; nothing to download, always right where you left it.</p>
+
+    {% if videos %}
+    <div class="video-grid">
+      {% for v in videos %}
+      <a class="video-card" href="{{ url_for('main.watch', video_id=v.id) }}">
+        <div class="video-card__thumb">
+          {% if v.has_thumb() %}
+          <img src="{{ url_for('main.video_thumb', video_id=v.id) }}" alt="" loading="lazy">
+          {% else %}
+          <span class="video-card__play" aria-hidden="true">&#9654;</span>
+          {% endif %}
+        </div>
+        <div class="video-card__body">
+          <h3>{{ v.title }}</h3>
+          {% if v.description %}<p>{{ v.description|truncate(110) }}</p>{% endif %}
+          <span class="video-card__date">{{ v.created_at.strftime('%b %d, %Y') }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <p>No videos yet &mdash; the first one is on its way. Check back soon.</p>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
