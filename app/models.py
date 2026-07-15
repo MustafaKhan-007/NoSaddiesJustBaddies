@@ -419,17 +419,20 @@ class CheckIn(db.Model):
 
 
 class Video(db.Model):
-    """An owner-uploaded video (Creator-membership perk). Bytes live in the DB
-    so they survive Render's ephemeral filesystem, like avatars/assets."""
+    """An owner-uploaded video (Creator-membership perk). The file is streamed
+    to a directory on disk (a mounted persistent disk in production) so large
+    uploads don't exhaust worker memory; only the small thumbnail lives in the
+    DB. ``disk_name`` is the file's name within VIDEO_STORAGE_DIR."""
     __tablename__ = "videos"
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(160), nullable=False)
     description = db.Column(db.Text)
-    filename = db.Column(db.String(255))
+    filename = db.Column(db.String(255))   # original upload name (for download)
+    disk_name = db.Column(db.String(64))   # stored file name on disk
     mime = db.Column(db.String(120), nullable=False)
     size = db.Column(db.Integer, nullable=False, default=0)
-    data = db.Column(db.LargeBinary, nullable=False)
+    data = db.Column(db.LargeBinary)       # legacy DB-stored bytes (older rows)
     thumb_data = db.Column(db.LargeBinary)
     thumb_mime = db.Column(db.String(40))
     published = db.Column(db.Boolean, nullable=False, default=True)

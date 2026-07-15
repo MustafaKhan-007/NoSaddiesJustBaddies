@@ -20,7 +20,7 @@
     <div class="field">
       <label for="video_file">Video file {% if video %}(leave blank to keep the current one){% endif %}</label>
       <input type="file" id="video_file" name="video_file" accept="video/mp4,video/quicktime,video/webm,video/ogg">
-      <p class="field-help">MP4, MOV, WEBM or OGG, up to 64&nbsp;MB.{% if video %} Current file: {{ video.filename }} ({{ video.size_mb() }} MB).{% endif %}</p>
+      <p class="field-help">MP4, MOV, WEBM or OGG, up to {{ max_mb }}&nbsp;MB.{% if video %} Current file: {{ video.filename }} ({{ video.size_mb() }} MB).{% endif %}</p>
     </div>
 
     <div class="field">

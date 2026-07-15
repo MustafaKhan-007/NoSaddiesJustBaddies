@@ -300,10 +300,14 @@ PY
     the My Journey export, and eligibility for the home spotlight.
   - Gating helpers: `User.is_member()` (Healing+) and `User.is_creator()`.
 - **Video room** (`/watch`, Creator-only): the owner uploads videos in **Studio
-  → Videos**. Files (and 16:9 thumbnails) are stored in the DB so they survive
-  Render deploys, validated in `app/services/videos.py`, and streamed with HTTP
-  **Range** support so `<video>` can seek. No download control is exposed. New
-  videos surface as a nudge on the Creator's home page.
+  → Videos**. Files are **streamed to a directory on disk** in 1 MB chunks
+  (`VIDEO_STORAGE_DIR`, a mounted persistent disk on Render — see `render.yaml`)
+  so even large clips never load fully into worker memory; only the small 16:9
+  thumbnail lives in the DB. Validated in `app/services/videos.py` and served
+  with HTTP **Range** support (via `send_file`) so `<video>` can seek. The
+  per-file cap is `MAX_VIDEO_MB` (default 1024 MB); oversized uploads show an
+  inline error on the form rather than an error page. No download control is
+  exposed. New videos surface as a nudge on the Creator's home page.
 - **Profile links** are a Creator perk and are restricted to social platforms
   (Instagram, TikTok, YouTube, Facebook, Snapchat, X, …). The platform label is
   detected from the URL (`app/services/social.py`).

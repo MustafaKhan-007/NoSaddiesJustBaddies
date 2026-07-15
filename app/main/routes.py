@@ -1,11 +1,12 @@
 """Public pages."""
 import json
 import logging
+import os
 import re
 from datetime import date, datetime
 
-from flask import (Response, abort, flash, redirect, render_template, request,
-                   url_for)
+from flask import (Response, abort, current_app, flash, redirect,
+                   render_template, request, send_file, url_for)
 from flask_login import current_user, login_required
 
 from ..extensions import db, limiter
@@ -516,7 +517,19 @@ def video_stream(video_id):
     video = db.session.get(Video, video_id)
     if video is None or not video.published:
         abort(404)
-    return _range_response(bytes(video.data), video.mime, video.filename or "video")
+    if video.disk_name:
+        path = os.path.join(current_app.config["VIDEO_STORAGE_DIR"], video.disk_name)
+        if not os.path.exists(path):
+            abort(404)
+        # send_file(conditional=True) handles Range requests (206 + Content-Range)
+        resp = send_file(path, mimetype=video.mime, conditional=True,
+                         download_name=video.filename or "video")
+        resp.headers["Accept-Ranges"] = "bytes"
+        resp.headers["Cache-Control"] = "private, no-store"
+        return resp
+    if video.data:  # legacy rows still stored in the database
+        return _range_response(bytes(video.data), video.mime, video.filename or "video")
+    abort(404)
 
 
 @bp.route("/account/password", methods=["GET", "POST"])

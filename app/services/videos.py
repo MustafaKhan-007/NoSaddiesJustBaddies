@@ -1,17 +1,20 @@
 """Validate owner-uploaded videos and build 16:9 thumbnails.
 
-Bytes are stored in the database (like avatars/assets) so they survive Render
-deploys. Videos are served with HTTP range support so the browser can seek.
+Video files are streamed to a directory on disk (a mounted persistent disk in
+production) in fixed-size chunks, so even large uploads never load fully into
+memory. Only the small thumbnail is kept in the database. Videos are served
+with HTTP range support so the browser can seek.
 """
 import io
 import os
+import secrets
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-MAX_VIDEO_BYTES = 64 * 1024 * 1024   # 64 MB (fits the hosted DB + worker memory)
 MAX_THUMB_BYTES = 6 * 1024 * 1024
 THUMB_W, THUMB_H = 1280, 720
 THUMB_MIME = "image/jpeg"
+_CHUNK = 1024 * 1024   # 1 MB streaming buffer
 
 EXT_MIME = {
     ".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime",
@@ -23,10 +26,9 @@ class VideoError(ValueError):
     pass
 
 
-def _sniff(ext: str, raw: bytes) -> bool:
-    head = raw[:16]
+def _sniff(ext: str, head: bytes) -> bool:
     if ext in (".mp4", ".m4v", ".mov"):
-        return raw[4:8] == b"ftyp"
+        return head[4:8] == b"ftyp"
     if ext == ".webm":
         return head[:4] == b"\x1a\x45\xdf\xa3"
     if ext in (".ogg", ".ogv"):
@@ -34,20 +36,59 @@ def _sniff(ext: str, raw: bytes) -> bool:
     return False
 
 
-def process_video(file_storage):
-    """Validate an uploaded video. Returns (data, mime, filename)."""
+def _safe_remove(path: str):
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
+def process_video(file_storage, dest_dir: str, max_bytes: int):
+    """Stream an uploaded video to ``dest_dir`` in chunks, enforcing the size
+    cap as we go. Returns (disk_name, mime, original_filename, size)."""
     name = os.path.basename(file_storage.filename or "")
     ext = os.path.splitext(name)[1].lower()
     if ext not in EXT_MIME:
         raise VideoError("Please upload an MP4, MOV, WEBM or OGG video.")
-    raw = file_storage.read(MAX_VIDEO_BYTES + 1)
-    if not raw:
+
+    stream = file_storage.stream
+    head = stream.read(16)
+    if not head:
         raise VideoError("That file was empty.")
-    if len(raw) > MAX_VIDEO_BYTES:
-        raise VideoError("That video is over 64 MB \u2014 please trim or compress it.")
-    if not _sniff(ext, raw):
+    if not _sniff(ext, head):
         raise VideoError("That didn't look like a valid video file.")
-    return raw, EXT_MIME[ext], name[:255]
+
+    os.makedirs(dest_dir, exist_ok=True)
+    disk_name = secrets.token_hex(16) + ext
+    path = os.path.join(dest_dir, disk_name)
+    size = 0
+    try:
+        with open(path, "wb") as f:
+            f.write(head)
+            size = len(head)
+            while True:
+                chunk = stream.read(_CHUNK)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > max_bytes:
+                    raise VideoError(
+                        f"That video is over {max_bytes // (1024 * 1024)} MB \u2014 "
+                        "please trim or compress it.")
+                f.write(chunk)
+    except VideoError:
+        _safe_remove(path)
+        raise
+    except OSError:
+        _safe_remove(path)
+        raise VideoError("We couldn't save that upload just now \u2014 please try again.")
+    return disk_name, EXT_MIME[ext], name[:255], size
+
+
+def delete_stored(dest_dir: str, disk_name: str):
+    """Remove a stored video file (best effort)."""
+    if dest_dir and disk_name:
+        _safe_remove(os.path.join(dest_dir, disk_name))
 
 
 def process_thumb(file_storage):

@@ -650,6 +650,16 @@ r = admin.post("/admin/videos/new", data={
 }, content_type="multipart/form-data", follow_redirects=True)
 ok("Non-video upload is rejected", "MP4" in r.get_data(as_text=True))
 
+# oversized video shows the error inline on the form, not an error page
+app.config["MAX_VIDEO_MB"] = 0
+r = admin.post("/admin/videos/new", data={
+    "title": "Too big", "published": "1", "sort_order": "0",
+    "video_file": (io.BytesIO(minimal_mp4), "big.mp4"),
+}, content_type="multipart/form-data", follow_redirects=False)
+ok("Oversized video shows an inline error (no error-page redirect)",
+   r.status_code == 200 and "0 MB" in r.get_data(as_text=True))
+app.config["MAX_VIDEO_MB"] = 1024
+
 # home spotlight: creator of the month + reel of the week
 reel_url = "https://www.instagram.com/reel/ABC123xyz/"
 spotlight_settings = {"site_title": "First Light", "instagram_url": "",

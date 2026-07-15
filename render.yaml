@@ -8,11 +8,23 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: flask db upgrade && python seed.py && gunicorn "app:create_app()" --workers 2 --threads 4 --timeout 300
     healthCheckPath: /healthz
+    # Persistent disk for uploaded videos (survives deploys; keeps big files
+    # out of the database and out of worker memory). Resize in the dashboard.
+    disk:
+      name: media
+      mountPath: /var/media
+      sizeGB: 25
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
       - key: APP_ENV
         value: production
+      # Where uploaded videos are stored (on the mounted disk above).
+      - key: VIDEO_STORAGE_DIR
+        value: /var/media/videos
+      # Per-video upload cap in MB (checkout the disk size before raising).
+      - key: MAX_VIDEO_MB
+        value: "1024"
       - key: FLASK_APP
         value: "app:create_app"
       - key: DATABASE_URL

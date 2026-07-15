@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from flask import Flask, render_template, request  # noqa: E402
+from flask import (Flask, flash, redirect, render_template,  # noqa: E402
+                   request, url_for)
 from sqlalchemy import text  # noqa: E402
 
 from .config import get_config  # noqa: E402
@@ -52,6 +53,18 @@ def _ensure_secret_key(app):
 def create_app(config_class=None):
     app = Flask(__name__)
     app.config.from_object(config_class or get_config())
+
+    # Resolve where uploaded videos live: a mounted persistent disk in
+    # production (VIDEO_STORAGE_DIR), or the instance folder locally.
+    import os as _os
+    video_dir = (app.config.get("VIDEO_STORAGE_DIR") or "").strip() \
+        or _os.path.join(app.instance_path, "videos")
+    app.config["VIDEO_STORAGE_DIR"] = video_dir
+    try:
+        _os.makedirs(video_dir, exist_ok=True)
+    except OSError:
+        logging.getLogger(__name__).warning(
+            "Could not create video storage directory %s", video_dir)
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -167,6 +180,13 @@ def create_app(config_class=None):
 
     @app.errorhandler(413)
     def too_large(_e):
+        # Prefer showing the message inline on the form the user came from
+        # (same-origin only) rather than bouncing them to a full error page.
+        ref = request.referrer
+        if ref and ref.startswith(request.host_url):
+            flash("That file was too large to upload \u2014 please choose a smaller "
+                  "one and try again.", "error")
+            return redirect(ref)
         return render_template("errors/413.html"), 413
 
     return app

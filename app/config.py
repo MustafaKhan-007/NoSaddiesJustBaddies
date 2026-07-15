@@ -33,10 +33,14 @@ class Config:
         "pool_recycle": 280,
     }
 
-    # Reject absurdly large request bodies before they tie up a worker. Sits
-    # above the biggest legit upload (a video + thumbnail, or several 25 MB
-    # course files); per-file limits are still enforced in the services.
-    MAX_CONTENT_LENGTH = 150 * 1024 * 1024
+    # Video uploads are streamed to a directory on disk (a mounted persistent
+    # disk in production, the instance folder locally) instead of the database,
+    # so they can be large without exhausting worker memory. MAX_VIDEO_MB is the
+    # per-file cap; MAX_CONTENT_LENGTH sits just above it (+ headroom for the
+    # thumbnail and several 25 MB course files) and rejects absurd bodies fast.
+    MAX_VIDEO_MB = int(os.environ.get("MAX_VIDEO_MB", "1024") or 1024)
+    VIDEO_STORAGE_DIR = os.environ.get("VIDEO_STORAGE_DIR", "").strip()
+    MAX_CONTENT_LENGTH = (MAX_VIDEO_MB + 32) * 1024 * 1024
 
     # Sessions / auth
     SESSION_COOKIE_NAME = "firstlight_session"

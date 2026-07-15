@@ -33,7 +33,8 @@ from ..services.lemonsqueezy import sync_recent_orders
 from ..services.settings import DEFAULTS as SETTING_DEFAULTS
 from ..services.settings import all_settings, set_setting
 from ..services.social import platform_for
-from ..services.videos import VideoError, process_thumb, process_video
+from ..services.videos import (VideoError, delete_stored, process_thumb,
+                               process_video)
 from . import bp
 
 log = logging.getLogger(__name__)
@@ -732,7 +733,9 @@ def video_form(video_id=None):
         upload = request.files.get("video_file")
         if upload and upload.filename:
             try:
-                new_video = process_video(upload)
+                new_video = process_video(
+                    upload, current_app.config["VIDEO_STORAGE_DIR"],
+                    current_app.config["MAX_VIDEO_MB"] * 1024 * 1024)
             except VideoError as exc:
                 errors.append(str(exc))
         elif video is None:
@@ -750,18 +753,21 @@ def video_form(video_id=None):
             for e in errors:
                 flash(e, "error")
         else:
+            old_disk = None
             try:
                 if video is None:
-                    video = Video(mime="video/mp4", data=b"")
+                    video = Video(mime="video/mp4")
                     db.session.add(video)
                 video.title = title
                 video.description = description
                 video.published = published
                 video.sort_order = sort_order
                 if new_video:
-                    data, mime, fname = new_video
-                    video.data, video.mime, video.filename = data, mime, fname
-                    video.size = len(data)
+                    disk_name, mime, fname, size = new_video
+                    old_disk = video.disk_name  # replaced file, delete after commit
+                    video.disk_name, video.mime, video.filename = disk_name, mime, fname
+                    video.size = size
+                    video.data = None
                 if new_thumb:
                     video.thumb_data, video.thumb_mime = new_thumb
                 if request.form.get("remove_thumb"):
@@ -771,22 +777,29 @@ def video_form(video_id=None):
             except Exception:
                 db.session.rollback()
                 log.exception("video upload failed")
-                flash("We couldn't save that video just now \u2014 it may be too large "
-                      "for the server to store. Try a shorter or more compressed clip "
-                      "(under 64 MB).", "error")
+                # a brand-new file we just wrote is now orphaned; clean it up
+                if new_video:
+                    delete_stored(current_app.config["VIDEO_STORAGE_DIR"], new_video[0])
+                flash("We couldn't save that video just now \u2014 please try again.",
+                      "error")
             else:
+                if old_disk:
+                    delete_stored(current_app.config["VIDEO_STORAGE_DIR"], old_disk)
                 flash("Video saved.", "success")
                 return redirect(url_for("admin.videos"))
 
-    return render_template("admin/video_form.html", video=video)
+    return render_template("admin/video_form.html", video=video,
+                           max_mb=current_app.config["MAX_VIDEO_MB"])
 
 
 @bp.route("/videos/<int:video_id>/delete", methods=["POST"])
 @admin_required
 def video_delete(video_id):
     video = db.session.get(Video, video_id) or abort(404)
+    disk_name = video.disk_name
     db.session.delete(video)
     db.session.commit()
+    delete_stored(current_app.config["VIDEO_STORAGE_DIR"], disk_name)
     flash("Video deleted.", "success")
     return redirect(url_for("admin.videos"))
 
