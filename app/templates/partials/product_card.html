@@ -7,6 +7,9 @@
   {% endif %}
   <div class="body">
     <span class="type-pill type-pill--{{ product.type }}">{{ product.type_label() }}</span>
+    {% if product.grants_membership %}
+    <span class="type-pill type-pill--membership">{{ product.membership_grant_label() }}</span>
+    {% endif %}
     <h3>{{ product.title }}</h3>
     {% if product.promise %}<p class="promise">{{ product.promise }}</p>{% endif %}
     <div class="price-row">

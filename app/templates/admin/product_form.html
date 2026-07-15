@@ -44,6 +44,17 @@
         </select>
         <p class="field-help">Groups this into a filter tab on the catalogue.</p>
       </div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label for="grants_membership">Sell as a membership?</label>
+        <select id="grants_membership" name="grants_membership">
+          <option value="">No &mdash; a normal product</option>
+          <option value="healing" {{ 'selected' if product.grants_membership == 'healing' }}>Grants Healing membership</option>
+          <option value="creator" {{ 'selected' if product.grants_membership == 'creator' }}>Grants Creator membership</option>
+        </select>
+        <p class="field-help">When a buyer pays, their account is upgraded to this tier automatically (a refund removes it).</p>
+      </div>
       <div class="field">
         <label for="status">Status</label>
         <select id="status" name="status">

@@ -26,6 +26,14 @@ QUOTE_CATEGORIES = ("comfort", "determination", "renewal")
 #: export, profile links, and eligibility for the home-page spotlight.
 MEMBERSHIPS = ("none", "healing", "creator")
 MEMBERSHIP_LABELS = {"none": "Free", "healing": "Healing", "creator": "Creator"}
+#: ordering so we can compare / take the "highest" tier a member holds
+MEMBERSHIP_RANK = {"none": 0, "healing": 1, "creator": 2}
+
+
+def higher_membership(a: str, b: str) -> str:
+    """Return whichever of two tiers ranks higher."""
+    a, b = a or "none", b or "none"
+    return a if MEMBERSHIP_RANK.get(a, 0) >= MEMBERSHIP_RANK.get(b, 0) else b
 
 #: subjects a course/guide can be filed under (owner picks one; drives the
 #: filter tabs on the catalogue).
@@ -220,6 +228,8 @@ class Product(db.Model):
     slug = db.Column(db.String(160), unique=True, nullable=False)
     type = db.Column(db.String(20), nullable=False, default="course")
     subject = db.Column(db.String(60))   # filterable catalogue subject
+    #: if set ("healing"/"creator"), buying this product grants that membership
+    grants_membership = db.Column(db.String(20))
     status = db.Column(db.String(20), nullable=False, default="draft")
     featured = db.Column(db.Boolean, nullable=False, default=False)
     badge = db.Column(db.String(30))
@@ -284,6 +294,12 @@ class Product(db.Model):
 
     def type_label(self):
         return "Course" if self.type == "course" else "Notebook Guide"
+
+    def membership_grant_label(self):
+        """Human label for the tier this product unlocks, or None."""
+        if self.grants_membership in ("healing", "creator"):
+            return MEMBERSHIP_LABELS[self.grants_membership] + " membership"
+        return None
 
     def publish_blockers(self):
         """List of human-readable requirements missing before publishing."""

@@ -167,6 +167,8 @@ def _product_from_form(product: Product, form) -> list[str]:
         product.type = form.get("type")
     subject = (form.get("subject") or "").strip()
     product.subject = subject if subject in PRODUCT_SUBJECTS else None
+    grant = (form.get("grants_membership") or "").strip()
+    product.grants_membership = grant if grant in ("healing", "creator") else None
     product.featured = bool(form.get("featured"))
     product.badge = (form.get("badge") or "").strip()[:30] or None
     try:

@@ -20,14 +20,36 @@
     </div>
     <div>
       <span class="type-pill type-pill--{{ product.type }}">{{ product.type_label() }}</span>
+      {% if product.grants_membership %}
+      <span class="type-pill type-pill--membership">{{ product.membership_grant_label() }}</span>
+      {% endif %}
       <h1 style="font-size: 40px; margin-top: 14px;">{{ product.title }}</h1>
       {% if product.promise %}<p class="subline" style="font-size: 19px; color: var(--ink-soft);">{{ product.promise }}</p>{% endif %}
       <p class="price-large">
         {% if product.compare_at_cents %}from {% endif %}{{ product.price_display() }}
         {% if product.compare_at_cents %}<del>{{ product.compare_at_display() }}</del>{% endif %}
       </p>
-      <a href="{{ product.ls_checkout_url }}" class="btn btn--primary lemonsqueezy-button">Get {{ product.type_label().lower() }} now</a>
+      <a href="{{ product.ls_checkout_url }}" class="btn btn--primary lemonsqueezy-button">{% if product.grants_membership %}Become a member{% else %}Get {{ product.type_label().lower() }} now{% endif %}</a>
       <p class="trust-line">Secure checkout &middot; Cards &amp; PayPal &middot; Instant delivery by email</p>
+      {% if product.grants_membership == 'creator' %}
+      <div class="membership-perks">
+        <p class="eyebrow">Your Creator membership unlocks</p>
+        <ul>
+          <li>Post &amp; read the whole community</li>
+          <li>The owner's video room</li>
+          <li>Social links on your profile + a shot at the home-page spotlight</li>
+          <li>The "My Journey" keepsake export</li>
+        </ul>
+      </div>
+      {% elif product.grants_membership == 'healing' %}
+      <div class="membership-perks">
+        <p class="eyebrow">Your Healing membership unlocks</p>
+        <ul>
+          <li>Post, reply &amp; like across the whole community</li>
+          <li>Every thread and comment (no peeking limits)</li>
+        </ul>
+      </div>
+      {% endif %}
     </div>
   </div>
 </section>

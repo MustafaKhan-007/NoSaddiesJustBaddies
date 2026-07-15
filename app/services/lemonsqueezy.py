@@ -37,6 +37,9 @@ def upsert_order(ls_order_id: str, ls_variant_id: str | None, buyer_email: str,
         product = Product.query.filter_by(ls_variant_id=order.ls_variant_id).first()
         if product:
             order.product_id = product.id
+    # grant/revoke membership when the purchased product is a membership
+    from .memberships import apply_from_order
+    apply_from_order(order)
     return order
 
 

@@ -3,6 +3,9 @@
 
 {% block content %}
 <h1>Members</h1>
+<p class="field-help" style="margin-top: 0;">Set a tier by hand below, or sell memberships:
+  mark a <a href="{{ url_for('admin.products') }}">product</a> as granting a tier and buyers are
+  upgraded automatically on payment (a refund removes it). Manual changes here always win.</p>
 
 <div class="stat-row" style="margin-bottom: 20px;">
   <div class="stat-chip"><span>{{ counts.get('none', 0) }}</span> Free</div>

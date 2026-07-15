@@ -676,6 +676,60 @@ with app.app_context():
     new_tier = User.query.filter_by(email="free@example.com").first().membership
 ok("Owner can grant a membership", new_tier == "healing", f"got {new_tier}")
 
+# --- 5f. purchasable memberships --------------------------------------------
+mem_form = {**form, "title": "Creator Membership", "slug": "creator-membership-x",
+            "grants_membership": "creator", "ls_variant_id": "555001",
+            "ls_checkout_url": "https://store.lemonsqueezy.com/buy/creator"}
+r = admin.post("/admin/products/new", data=mem_form, follow_redirects=True)
+ok("Owner can sell a membership product", "Product saved" in r.get_data(as_text=True))
+r = client.get("/courses/creator-membership-x")
+ok("Membership product shows its perks + become-a-member CTA",
+   "membership-perks" in r.get_data(as_text=True) and "Become a member" in r.get_data(as_text=True))
+
+
+def _order_webhook(order_id, email, variant, event="order_created", status="paid"):
+    body = json.dumps({
+        "meta": {"event_name": event},
+        "data": {"id": order_id, "attributes": {
+            "user_email": email, "total": 1900, "currency": "USD",
+            "status": status, "first_order_item": {"variant_id": variant}}},
+    }).encode()
+    s = hmac.new(b"test-secret", body, hashlib.sha256).hexdigest()
+    return client.post("/webhooks/lemonsqueezy", data=body,
+                       headers={"Content-Type": "application/json", "X-Signature": s})
+
+
+# an existing free member buys -> upgraded to Creator
+with app.app_context():
+    b2 = User(email="buyer2@example.com", membership="none", email_verified_at=utcnow())
+    b2.set_password(USER_PW)
+    db.session.add(b2)
+    db.session.commit()
+_order_webhook("MEM-1", "buyer2@example.com", 555001)
+with app.app_context():
+    t = User.query.filter_by(email="buyer2@example.com").first().membership
+ok("Buying a membership upgrades the account", t == "creator", f"got {t}")
+
+# a refund revokes it
+_order_webhook("MEM-1", "buyer2@example.com", 555001,
+               event="order_refunded", status="refunded")
+with app.app_context():
+    t = User.query.filter_by(email="buyer2@example.com").first().membership
+ok("Refunding a membership revokes it", t == "none", f"got {t}")
+
+# buying before the account exists: tier is granted at first login
+_order_webhook("MEM-2", "prebuyer@example.com", 555001)
+with app.app_context():
+    pre = User(email="prebuyer@example.com", membership="none", email_verified_at=utcnow())
+    pre.set_password(USER_PW)
+    db.session.add(pre)
+    db.session.commit()
+pre_client = app.test_client()
+pre_client.post("/login", data={"email": "prebuyer@example.com", "password": USER_PW})
+with app.app_context():
+    t = User.query.filter_by(email="prebuyer@example.com").first().membership
+ok("Pre-purchase is honoured at first login", t == "creator", f"got {t}")
+
 # --- 6. quote pinning + bulk import dedupe ----------------------------------------
 with app.app_context():
     pin_day = date.today() + timedelta(days=3)

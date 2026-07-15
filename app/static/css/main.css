@@ -406,6 +406,18 @@ label { display: block; font-weight: 600; margin-bottom: 6px; }
 }
 .type-pill--course { background: var(--gold-soft); }
 .type-pill--guide { background: var(--rose-soft); }
+.type-pill--membership {
+  background: linear-gradient(135deg, var(--plum), var(--berry)); color: #fff;
+  margin-left: 6px;
+}
+.membership-perks {
+  margin-top: 18px; padding: 16px 20px;
+  background: var(--ivory-deep); border-radius: var(--radius-card);
+  border-left: 4px solid var(--plum);
+}
+.membership-perks .eyebrow { margin: 0 0 8px; }
+.membership-perks ul { margin: 0; padding-left: 20px; }
+.membership-perks li { margin: 4px 0; }
 
 /* ------------------------------ filter tabs ------------------------------- */
 .filter-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin: 24px 0 40px; }

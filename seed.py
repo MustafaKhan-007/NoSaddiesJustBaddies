@@ -15,7 +15,7 @@ from pathlib import Path
 
 from app import create_app
 from app.extensions import db
-from app.models import FaqItem, ForumCategory, ForumTag, Page, Quote
+from app.models import FaqItem, ForumCategory, ForumTag, Page, Product, Quote
 
 SEED_FILE = Path(__file__).parent / "data" / "quotes_seed.json"
 
@@ -49,6 +49,26 @@ STARTER_FAQS = [
      "No \u2014 and it doesn't pretend to be. These are practical courses and "
      "notebooks. If you're in crisis, please reach out to a professional or a "
      "local helpline first. This will be here after.", 3),
+]
+
+# Membership products, created as drafts. Add a Lemon Squeezy buy link + cover
+# and publish them to start selling. Buying one auto-upgrades the buyer's tier.
+MEMBERSHIP_PRODUCTS = [
+    {"slug": "healing-membership", "title": "Healing Membership", "grants": "healing",
+     "promise": "Full community access \u2014 post, reply and read every thread.",
+     "price_cents": 900,
+     "description": "A place to process, vent and be met with kindness. Healing "
+                    "members can post, reply and like across both community forums, "
+                    "with no peeking limits.",
+     "sort": 90},
+    {"slug": "creator-membership", "title": "Creator Membership", "grants": "creator",
+     "promise": "Everything in Healing, plus the video room, profile links, the "
+                "spotlight and the My Journey keepsake.",
+     "price_cents": 1900,
+     "description": "For the ones building in public. Creator members get the full "
+                    "community, the owner's video room, social links on their profile, "
+                    "a shot at the home-page spotlight, and the My Journey PDF export.",
+     "sort": 91},
 ]
 
 LEGAL_STUBS = {
@@ -125,6 +145,19 @@ def seed():
                     tag_added += 1
         if cat_added or tag_added:
             print(f"Forums: added {cat_added} categories, {tag_added} tags")
+
+        # 5. membership products (drafts; owner adds a buy link + publishes)
+        mem_added = 0
+        for m in MEMBERSHIP_PRODUCTS:
+            if Product.query.filter_by(slug=m["slug"]).first() is None:
+                db.session.add(Product(
+                    slug=m["slug"], title=m["title"], type="course",
+                    grants_membership=m["grants"], status="draft",
+                    promise=m["promise"], description_md=m["description"],
+                    price_cents=m["price_cents"], sort_order=m["sort"]))
+                mem_added += 1
+        if mem_added:
+            print(f"Added {mem_added} membership product drafts")
 
         db.session.commit()
         print("Seed complete.")

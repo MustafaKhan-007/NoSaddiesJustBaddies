@@ -11,8 +11,9 @@ What's inside:
   pages, and overlay checkout
 - On-site reader for purchased courses & guides: owners upload PDF/Word files,
   buyers read them online (PDFs embedded, .docx rendered inline) with no download
-- Membership tiers (Free / Healing / Creator) that gate the community, videos,
-  profile links, the spotlight, and the My Journey export
+- Purchasable membership tiers (Free / Healing / Creator) — sold as products and
+  auto-granted on a paid order (revoked on refund) — that gate the community,
+  videos, profile links, the spotlight, and the My Journey export
 - Owner-uploaded **video room** (Creator members only) with thumbnails, titles,
   descriptions, and range-streamed playback (no downloads)
 - Home-page spotlight: **Creator of the Month** (links to Instagram) and an
@@ -273,9 +274,18 @@ PY
 ## 4g. Memberships, videos & the home spotlight
 
 - **Tiers** live on `users.membership` (`none` / `healing` / `creator`); the
-  owner is always treated as a Creator. Owner assigns tiers in **Studio →
-  Members** (`/admin/members`), which also shows a live count and a spotlight
-  pick-list of Creator members + their Instagram handles.
+  owner is always treated as a Creator.
+- **Buy a membership**: mark any product as granting a tier (product form →
+  "Sell as a membership"). When Lemon Squeezy reports a **paid** order for it,
+  the buyer's account is upgraded automatically; a **refund** recomputes the tier
+  from their remaining paid membership orders (so it's revoked). Bought before
+  making an account? The tier is granted at first login (matched by email). Logic
+  lives in `app/services/memberships.py`, wired through `upsert_order` so both
+  webhooks and the dashboard "Sync" stay consistent. `seed.py` creates two
+  membership product drafts (Healing, Creator) — add a buy link and publish.
+- **Assign by hand**: the owner can still set any tier in **Studio → Members**
+  (`/admin/members`); manual changes always win. That page also shows live counts
+  and a spotlight pick-list of Creator members + their Instagram handles.
   - **Free**: shop, quotes, announcements, badges; can *peek* at the community
     (top 3 threads per forum, top 5 comments each) but can't post, reply or like.
   - **Healing**: full community read + post/reply/like.

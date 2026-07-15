@@ -100,6 +100,9 @@ def _check_code(user: User, purpose: str, submitted: str) -> tuple[bool, str]:
 
 def _log_in(user: User, remember: bool = True):
     user.last_login_at = utcnow()
+    # honour any membership bought before this account existed / signed in
+    from ..services.memberships import reconcile_user
+    reconcile_user(user)
     db.session.commit()
     login_user(user, remember=remember)
     # permanent session so the admin idle-timeout window survives browser restarts
