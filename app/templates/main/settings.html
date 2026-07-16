@@ -48,20 +48,22 @@
 
       {% if can_link %}
       <fieldset class="link-fields">
-        <legend>Your social links</legend>
-        <p class="field-help">Add your social handles &mdash; {{ allowed_platforms|join(', ') }}. We detect the platform from the link, so just paste the URL. Shown on your public profile.</p>
+        <legend>Your links</legend>
+        <p class="field-help">Add links to your profile &mdash; your site, socials, a course, anything. A label is optional; we'll pull one from the URL if you leave it blank. Shown on your public profile.</p>
         {% for i in range(link_max) %}
         {% set existing = links[i] if i < links|length else None %}
         <div class="link-row">
+          <input type="text" name="link_label_{{ i }}" maxlength="40" class="link-row__label"
+                 value="{{ existing.label if existing else '' }}" placeholder="Label (optional)">
           <input type="url" name="link_url_{{ i }}" maxlength="300"
-                 value="{{ existing.url if existing else '' }}" placeholder="https://instagram.com/yourhandle">
+                 value="{{ existing.url if existing else '' }}" placeholder="https://…">
         </div>
         {% endfor %}
       </fieldset>
       {% else %}
       <fieldset class="link-fields link-fields--locked">
-        <legend>Your social links</legend>
-        <p class="field-help">Adding social links to your profile is a <strong>Creator membership</strong> perk. Upgrade to share your Instagram, TikTok and more.</p>
+        <legend>Your links</legend>
+        <p class="field-help">Adding links to your profile is a <strong>membership</strong> perk. Join Healing or Creator to share your site and socials.</p>
         <a class="btn btn--secondary btn--sm" href="{{ url_for('main.membership') }}">See memberships</a>
       </fieldset>
       {% endif %}
@@ -114,6 +116,26 @@
 
       <button class="btn btn--primary" type="submit">Save changes</button>
     </form>
+
+    <div class="settings-block">
+      <h3>Membership</h3>
+      <p class="field-help">You're on the <strong>{{ current_user.membership_label() }}</strong> plan.
+        {% if current_user.is_member() %}Manage your links, the Content Library and the marketplace from here.{% else %}Join to unlock the community, links and more.{% endif %}</p>
+      <div class="settings-actions">
+        <a class="btn btn--secondary btn--sm" href="{{ url_for('main.membership') }}">
+          {{ 'Change plan' if current_user.is_member() else 'See memberships' }}</a>
+        {% if current_user.is_member() %}
+        <a class="btn btn--secondary btn--sm" href="{{ url_for('main.my_listings') }}">Your listings</a>
+        {% endif %}
+      </div>
+      {% if current_user.is_member() and not current_user.is_admin %}
+      <form method="post" action="{{ url_for('main.cancel_membership') }}"
+            data-confirm="Cancel your membership? Your marketplace listings will be hidden." style="margin-top: 12px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn--quiet" type="submit">Cancel membership</button>
+      </form>
+      {% endif %}
+    </div>
 
     <div class="settings-block">
       <h3>Password</h3>

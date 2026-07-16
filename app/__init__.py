@@ -103,7 +103,8 @@ def create_app(config_class=None):
     from markupsafe import Markup, escape
 
     from .services.markdown import render_markdown
-    from .services.settings import active_announcement, all_settings
+    from .services.settings import (active_announcement, active_announcements,
+                                    all_settings)
 
     app.jinja_env.filters["markdown"] = render_markdown
 
@@ -124,6 +125,7 @@ def create_app(config_class=None):
     @app.context_processor
     def inject_globals():
         return {"site": all_settings(), "announcement": active_announcement(),
+                "announcements": active_announcements(),
                 "current_year": date.today().year}
 
     # --- health check ---------------------------------------------------------

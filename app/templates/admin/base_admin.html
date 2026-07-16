@@ -28,7 +28,8 @@
         <a href="{{ url_for('admin.community') }}" class="{{ 'active' if here.startswith('/admin/community') }}">Community</a>
         <a href="{{ url_for('admin.members') }}" class="{{ 'active' if here.startswith('/admin/members') }}">Members</a>
         <a href="{{ url_for('admin.membership_plans') }}" class="{{ 'active' if here.startswith('/admin/memberships') }}">Plans</a>
-        <a href="{{ url_for('admin.videos') }}" class="{{ 'active' if here.startswith('/admin/videos') }}">Videos</a>
+        <a href="{{ url_for('admin.videos') }}" class="{{ 'active' if here.startswith('/admin/videos') }}">Content Library</a>
+        <a href="{{ url_for('admin.marketplace') }}" class="{{ 'active' if here.startswith('/admin/marketplace') }}">Marketplace</a>
         <a href="{{ url_for('admin.badges') }}" class="{{ 'active' if here.startswith('/admin/badges') }}">Badges</a>
         <a href="{{ url_for('admin.settings') }}" class="{{ 'active' if here.startswith('/admin/settings') }}">Settings</a>
       </nav>

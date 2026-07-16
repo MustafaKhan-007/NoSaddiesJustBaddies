@@ -1,22 +1,29 @@
-# First Light
+# Bloom Anyway
 
 A warm, mobile-first storefront for digital courses and notebook guides, built to
 replace Gumroad. Flask + PostgreSQL, with **Lemon Squeezy hosted checkout** as the
 merchant of record (payments, tax, and file delivery all happen on their side —
-this site never touches card data and stores no files).
+this site never touches card data and stores no files). The brand mark is an inline
+SVG wordmark with two minimalist sunflowers standing in for the "o"s in *bloom*.
 
 What's inside:
 
 - Full catalog with filterable shop (by type **and** subject tabs), rich product
   pages, and overlay checkout
+- **Gift a course/guide** to a friend at checkout: the recipient's account email
+  rides along as Lemon Squeezy custom data and is granted access on payment
 - On-site reader for purchased courses & guides: owners upload PDF/Word files,
   buyers read them online (PDFs embedded, .docx rendered inline) with no download
 - Purchasable membership tiers (Free / Healing / Creator) — sold on their own at
-  `/membership` with a plan grid + comparison table, auto-granted on a paid order
-  (revoked on refund) — that gate the community, videos, profile links, the
-  spotlight, and the My Journey export
-- Owner-uploaded **video room** (Creator members only) with thumbnails, titles,
-  descriptions, and range-streamed playback (no downloads)
+  `/membership`, chosen from the signup page and managed (change/cancel) from
+  Settings, auto-granted on a paid order (revoked on refund)
+- **Marketplace** (`/marketplace`): members advertise digital products & services
+  (two categories), we redirect buyers to the seller's own site — Healing runs one
+  active listing, Creator unlimited, cancelled members' listings are auto-hidden;
+  filters (search, tags, location), popularity sort, and a list/tile view toggle
+- Owner-uploaded **Content Library** (`/watch`): Healing members browse titles,
+  thumbnails & descriptions but hit a lock icon on play; Creator members watch
+  (range-streamed, no downloads)
 - Home-page spotlight: **Creator of the Month** (links to Instagram) and an
   embedded **Reel of the Week** with an owner note and a watch-on-Instagram link
 - Daily motivational quote with deterministic rotation and pinning
@@ -295,10 +302,16 @@ PY
   and a spotlight pick-list of Creator members + their Instagram handles.
   - **Free**: shop, quotes, announcements, badges; can *peek* at the community
     (top 3 threads per forum, top 5 comments each) but can't post, reply or like.
-  - **Healing**: full community read + post/reply/like.
-  - **Creator**: everything in Healing, plus the video room, profile links,
-    the My Journey export, and eligibility for the home spotlight.
+  - **Healing**: full community read + post/reply/like, **profile links** (any
+    URL), the **My Journey** export, a **marketplace** listing (one at a time),
+    and can **browse** the Content Library (playback stays locked).
+  - **Creator**: everything in Healing, plus **watching** the Content Library,
+    **unlimited** marketplace listings, and eligibility for the home spotlight.
   - Gating helpers: `User.is_member()` (Healing+) and `User.is_creator()`.
+- **Membership choice** is surfaced on the signup page and managed from
+  **Settings** (change plan / cancel). Cancelling drops the tier to `none` and
+  auto-hides the member's marketplace listings; billing itself is cancelled in
+  Lemon Squeezy.
 - **Video room** (`/watch`, Creator-only): the owner uploads videos in **Studio
   → Videos**. Files are **streamed to a directory on disk** in 1 MB chunks
   (`VIDEO_STORAGE_DIR`, a mounted persistent disk on Render — see `render.yaml`)
@@ -308,13 +321,25 @@ PY
   per-file cap is `MAX_VIDEO_MB` (default 1024 MB); oversized uploads show an
   inline error on the form rather than an error page. No download control is
   exposed. New videos surface as a nudge on the Creator's home page.
-- **Profile links** are a Creator perk and are restricted to social platforms
-  (Instagram, TikTok, YouTube, Facebook, Snapchat, X, …). The platform label is
-  detected from the URL (`app/services/social.py`).
-- **Home spotlight** (Studio → Settings): *Creator of the Month* (name, photo,
-  blurb, Instagram link) and *Reel of the Week* — an Instagram reel URL is turned
-  into an embedded iframe (`instagram_embed_url`) with a watch-on-Instagram link
-  and an optional owner note. CSP allows `www.instagram.com` in `frame-src`.
+- **Profile links** are a members' perk (Healing+) and accept **any** URL. A
+  label is optional; when blank we derive one from the URL. Up to
+  `PROFILE_LINK_MAX` links, shown on the public profile.
+- **Marketplace** (`app/main` routes + `app/services/listings.py`): two
+  categories — *Digital products* and *Services* (services add a location).
+  Listings carry title, description, price (free text), website URL, up to 5
+  images (first = thumbnail, stored in the DB like avatars) and up to 12 tags.
+  We never sell here; the CTA counts an outbound click and redirects to the
+  seller's site. Tier caps (`MARKETPLACE_LIMITS`): Healing 1 active, Creator
+  unlimited; `enforce_listing_limits` hides overflow when a tier drops. Studio →
+  Marketplace lets the owner hide/restore/delete any listing.
+- **Home spotlight** (Studio → Settings): *Creator of the Month* now shows the
+  chosen creator's **photo, name, @handle and bio** (less dead space), and *Reel
+  of the Week* — an Instagram reel URL is turned into an embedded iframe
+  (`instagram_embed_url`) with a watch-on-Instagram link and an optional owner
+  note. Each card has a bold gradient tag. CSP allows `www.instagram.com`.
+- **Announcements**: a quick single one lives in Settings, and any number of
+  extra ones (each with an optional expiry) can be added below it; they stack
+  tidily in a strip at the very top of the home page (non-dismissible).
 - **Subjects**: each course/guide can be filed under a subject; the catalogue
   shows a second row of filter tabs for the subjects actually in use.
 

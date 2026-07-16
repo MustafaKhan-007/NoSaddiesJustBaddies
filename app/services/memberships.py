@@ -57,6 +57,9 @@ def reconcile_user(user: User, downgrade: bool = False) -> bool:
     if new != current:
         user.membership = new
         log.info("membership: user %s %s -> %s", user.id, current, new)
+        # a downgrade/cancel may exceed the new tier's marketplace allowance
+        from .listings import enforce_listing_limits
+        enforce_listing_limits(user)
         return True
     return False
 

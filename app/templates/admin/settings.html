@@ -106,7 +106,48 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="clear_announcement" value="1">
   <button class="btn btn--secondary btn--sm" type="submit">Remove announcement</button>
-  <span class="field-help" style="margin-left: 8px;">Clears the current announcement and its date.</span>
+  <span class="field-help" style="margin-left: 8px;">Clears the quick announcement above and its date.</span>
 </form>
 {% endif %}
+
+<div class="admin-panel" style="margin-top: 32px;">
+  <h2>More announcements</h2>
+  <p class="field-help">Run several at once &mdash; they stack tidily on the home page. Each can have its own expiry.</p>
+
+  <form method="post" class="form-row" style="align-items: flex-end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="add_announcement" value="1">
+    <div class="field" style="flex: 2;">
+      <label for="ann_body">Announcement</label>
+      <input type="text" id="ann_body" name="ann_body" maxlength="300" placeholder="e.g. New reel this week ☀">
+    </div>
+    <div class="field">
+      <label for="ann_expires">Show until (optional)</label>
+      <input type="date" id="ann_expires" name="ann_expires">
+    </div>
+    <button class="btn btn--primary btn--sm" type="submit">Add</button>
+  </form>
+
+  {% if announcements %}
+  <table class="admin-table" style="margin-top: 16px;">
+    <thead><tr><th>Announcement</th><th>Expires</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for a in announcements %}
+      <tr>
+        <td>{{ a.body }}</td>
+        <td>{{ a.expires.isoformat() if a.expires else '—' }}</td>
+        <td>{{ 'Live' if a.is_live() else 'Expired' }}</td>
+        <td>
+          <form method="post" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="remove_announcement" value="{{ a.id }}">
+            <button class="btn btn--danger btn--sm" type="submit">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
 {% endblock %}

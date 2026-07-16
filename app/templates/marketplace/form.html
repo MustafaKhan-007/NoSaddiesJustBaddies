@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit listing' if listing else 'New listing' }} — Marketplace{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container" style="max-width: 680px;">
+    <p class="eyebrow"><a href="{{ url_for('main.my_listings') }}">&larr; Your listings</a></p>
+    <h1>{{ 'Edit your listing' if listing else 'Advertise in the marketplace' }}</h1>
+    <p class="field-help">We only advertise here and send buyers to your own website &mdash; nothing is sold on Bloom Anyway.</p>
+
+    <form method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <fieldset class="kind-picker">
+        <legend>What is it?</legend>
+        {% for key, label in kinds.items() %}
+        <label class="kind-option">
+          <input type="radio" name="kind" value="{{ key }}"
+                 {{ 'checked' if (listing and listing.kind == key) or (not listing and key == 'product') }}
+                 onchange="document.getElementById('loc-field').style.display = (this.value==='service') ? '' : 'none'">
+          <span>{{ label }}</span>
+        </label>
+        {% endfor %}
+      </fieldset>
+
+      <div class="field">
+        <label for="title">Title</label>
+        <input type="text" id="title" name="title" maxlength="140" required
+               value="{{ listing.title if listing else '' }}">
+      </div>
+
+      <div class="field">
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="5">{{ listing.description if listing else '' }}</textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label for="price">Pricing</label>
+          <input type="text" id="price" name="price" maxlength="80" placeholder="e.g. $49 or From $20/hr"
+                 value="{{ listing.price or '' if listing else '' }}">
+        </div>
+        <div class="field" id="loc-field" style="{{ '' if (listing and listing.kind == 'service') else 'display:none' }}">
+          <label for="location">Location <span class="field-help">(services)</span></label>
+          <input type="text" id="location" name="location" maxlength="120"
+                 value="{{ listing.location or '' if listing else '' }}">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="website_url">Link to your site</label>
+        <input type="text" id="website_url" name="website_url" maxlength="500" required
+               placeholder="https://your-site.com/thing" value="{{ listing.website_url if listing else '' }}">
+      </div>
+
+      <div class="field">
+        <label for="tags">Tags</label>
+        <input type="text" id="tags" name="tags" placeholder="comma, separated, tags"
+               value="{{ listing.tags()|join(', ') if listing else '' }}">
+        <p class="field-help">Up to 12. These power the filters.</p>
+      </div>
+
+      <div class="field">
+        <label for="images">Photos</label>
+        <input type="file" id="images" name="images" accept="image/*" multiple>
+        <p class="field-help">Up to 5. The first one is the thumbnail.</p>
+        {% if listing and listing.images %}
+        <div class="listing-thumbs listing-thumbs--edit">
+          {% for img in listing.images %}
+          <label class="listing-thumb-edit">
+            <img src="{{ url_for('main.listing_image', image_id=img.id) }}" alt="">
+            <span><input type="checkbox" name="remove_image" value="{{ img.id }}"> remove</span>
+          </label>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <button class="btn btn--primary" type="submit">Save listing</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   FIRST LIGHT — design system
+   BLOOM ANYWAY — design system
    The moment just before sunrise: dark plum night, blush horizon, first gold.
    ========================================================================== */
 
@@ -1159,3 +1159,160 @@ details.faq-item > form { padding: 0 20px 20px; }
 .cmp-yes { color: var(--plum); font-weight: 800; font-size: 18px; }
 .cmp-no { color: var(--ink-soft); }
 .cmp-note { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+
+/* =========================== bloom anyway wordmark ======================== */
+.wordmark { display: inline-flex; align-items: baseline; gap: 1px;
+  font-family: var(--font-display); font-weight: 600; font-size: 27px;
+  color: var(--plum-deep); line-height: 1; letter-spacing: -0.01em; }
+.wordmark__txt { display: inline-block; }
+.wordmark__sf { width: 0.86em; height: 0.86em; display: inline-block;
+  transform: translateY(0.06em); }
+.wordmark__any { margin-left: 0.4em; font-style: italic; font-weight: 400;
+  font-size: 0.78em; color: var(--rose); }
+.footer-brand .wordmark { color: var(--dawn-ivory); }
+.footer-brand .wordmark__any { color: var(--rose-soft); }
+
+/* ============================ announcement strip ========================== */
+.announce-strip { background: var(--gold-soft);
+  border-bottom: 1px solid rgba(239,167,51,0.4); }
+.announce-strip .container { padding-top: 12px; padding-bottom: 12px;
+  display: flex; flex-direction: column; gap: 8px; }
+.announce-strip .hero-announcement,
+.announce-strip .hero-newvideo { margin: 0; }
+
+/* =============================== spotlight ================================ */
+.spotlight-tag { display: inline-block; font-family: var(--font-display);
+  font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: #fff; background: var(--horizon); padding: 6px 14px; border-radius: 999px;
+  margin-bottom: 14px; box-shadow: var(--shadow-card); }
+.spotlight-card--creator { display: flex; flex-direction: column; }
+.spotlight-creator { display: flex; align-items: center; gap: 16px; }
+.spotlight-creator__photo { width: 84px; height: 84px; border-radius: 50%;
+  object-fit: cover; flex: none; border: 3px solid var(--gold-soft); }
+.spotlight-creator__photo--ph { display: flex; align-items: center;
+  justify-content: center; font-size: 38px; background: var(--gold-soft); }
+.spotlight-creator__id h3 { margin: 0; font-size: 26px; }
+.spotlight-creator__handle { margin: 2px 0 0; color: var(--plum); font-weight: 700; }
+.spotlight-creator__bio { margin: 14px 0 18px; color: var(--ink-soft); }
+
+/* ============================ content library lock ======================= */
+.video-card--locked .video-card__thumb { filter: grayscale(0.35) brightness(0.85); }
+.video-card__lock { position: absolute; top: 10px; right: 10px; font-size: 20px;
+  background: rgba(43,38,34,0.7); color: #fff; width: 34px; height: 34px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.video-card__thumb { position: relative; }
+.video-locked { position: relative; border-radius: var(--radius-card);
+  overflow: hidden; background: var(--plum-deep) center/cover no-repeat;
+  min-height: 340px; }
+.video-locked__veil { position: absolute; inset: 0; display: flex;
+  flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  text-align: center; padding: 32px; color: #fff;
+  background: linear-gradient(rgba(43,24,45,0.72), rgba(43,24,45,0.86)); }
+.video-locked__icon { font-size: 46px; }
+.video-locked__veil h2 { color: #fff; margin: 0; }
+.video-locked__veil p { color: var(--rose-soft); max-width: 40ch; margin: 0 0 8px; }
+
+/* ============================== marketplace ============================== */
+.market-head { display: flex; justify-content: space-between; align-items: flex-end;
+  gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
+.market-filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  margin: 16px 0; }
+.market-filters input, .market-filters select { padding: 9px 12px;
+  border: 1px solid var(--ivory-deep); border-radius: var(--radius-input);
+  font-family: inherit; font-size: 15px; }
+.view-toggle { display: inline-flex; margin-left: auto; border-radius: 10px;
+  overflow: hidden; border: 1px solid var(--ivory-deep); }
+.view-toggle a { padding: 8px 12px; color: var(--ink-soft); text-decoration: none;
+  font-size: 18px; line-height: 1; background: #fff; }
+.view-toggle a.active { background: var(--plum); color: #fff; }
+.tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 24px; }
+.tag-chip { display: inline-block; padding: 6px 13px; border-radius: 999px;
+  background: var(--ivory-deep); color: var(--ink); text-decoration: none;
+  font-size: 14px; font-weight: 600; }
+.tag-chip.active, .tag-chip.on { background: var(--plum); color: #fff; }
+.tag-chip--mini { padding: 2px 9px; font-size: 12px; }
+.market-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 22px; }
+.market-card { background: #fff; border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card); overflow: hidden; display: flex; flex-direction: column;
+  transition: box-shadow .2s, transform .2s; }
+.market-card:hover { box-shadow: var(--shadow-card-hover); transform: translateY(-3px); }
+.market-card__thumb { position: relative; display: block; aspect-ratio: 4/3;
+  background: var(--gold-soft); overflow: hidden; }
+.market-card__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.market-card__ph, .market-row__ph { display: flex; align-items: center;
+  justify-content: center; height: 100%; font-size: 40px; }
+.market-card__pill { position: absolute; top: 10px; left: 10px; font-size: 12px;
+  font-weight: 700; background: rgba(255,255,255,0.92); color: var(--plum);
+  padding: 4px 10px; border-radius: 999px; }
+.market-card__body { padding: 16px; }
+.market-card__body h3 { margin: 0 0 6px; font-size: 19px; }
+.market-card__body h3 a, .market-row__body h3 a { color: inherit; text-decoration: none; }
+.market-card__body p { margin: 0 0 10px; color: var(--ink-soft); font-size: 14px; }
+.market-card__meta, .market-row__meta { display: flex; gap: 12px; align-items: center;
+  flex-wrap: wrap; }
+.market-price { font-weight: 800; color: var(--plum); }
+.market-price--lg { font-size: 26px; }
+.market-loc { color: var(--ink-soft); font-size: 14px; }
+.market-list { display: flex; flex-direction: column; gap: 14px; }
+.market-row { display: flex; gap: 16px; background: #fff; border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card); padding: 14px; text-decoration: none; color: inherit; }
+.market-row.is-inactive { opacity: 0.6; }
+.market-row__thumb { flex: none; width: 120px; height: 90px; border-radius: 12px;
+  overflow: hidden; background: var(--gold-soft); display: block; }
+.market-row__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.market-row__body { flex: 1; }
+.market-row__body h3 { margin: 6px 0 4px; font-size: 20px; }
+.market-row__body p { margin: 0 0 8px; color: var(--ink-soft); }
+.type-pill--muted { background: var(--ivory-deep); color: var(--ink-soft); }
+
+.listing-detail { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px;
+  margin-top: 20px; }
+.listing-detail__hero { width: 100%; border-radius: var(--radius-card);
+  aspect-ratio: 4/3; object-fit: cover; background: var(--gold-soft); }
+.listing-detail__ph { display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 4/3; font-size: 72px; background: var(--gold-soft);
+  border-radius: var(--radius-card); }
+.listing-thumbs { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.listing-thumbs img { width: 74px; height: 56px; object-fit: cover; border-radius: 8px;
+  cursor: pointer; border: 2px solid transparent; }
+.listing-thumbs img:hover { border-color: var(--plum); }
+.listing-thumbs--edit img { cursor: default; }
+.listing-thumb-edit { display: inline-flex; flex-direction: column; align-items: center;
+  gap: 4px; font-size: 12px; }
+.listing-desc { margin: 18px 0; line-height: 1.7; }
+.trust-line { font-size: 13px; color: var(--ink-soft); margin-top: 10px; }
+.seller-card { display: flex; gap: 14px; align-items: center; margin-top: 26px;
+  padding: 16px; background: var(--ivory-deep); border-radius: var(--radius-card); }
+.seller-card p { margin: 4px 0 0; }
+.kind-picker { display: flex; gap: 12px; border: none; padding: 0; margin: 0 0 18px; }
+.kind-option { flex: 1; }
+.kind-option input { position: absolute; opacity: 0; }
+.kind-option span { display: block; text-align: center; padding: 14px; border-radius: 12px;
+  border: 2px solid var(--ivory-deep); font-weight: 700; cursor: pointer; }
+.kind-option input:checked + span { border-color: var(--plum); background: rgba(122,46,98,0.06);
+  color: var(--plum); }
+.gift-box { margin-top: 16px; border: 1px dashed var(--rose); border-radius: 12px;
+  padding: 12px 16px; }
+.gift-box summary { cursor: pointer; font-weight: 700; color: var(--plum); }
+.gift-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.gift-row input { flex: 1; min-width: 200px; padding: 9px 12px;
+  border: 1px solid var(--ivory-deep); border-radius: var(--radius-input); }
+
+/* signup membership teaser + settings actions */
+.signup-plans { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--ivory-deep); }
+.signup-plans__list { list-style: none; padding: 0; margin: 12px 0; display: flex;
+  flex-direction: column; gap: 8px; font-size: 15px; color: var(--ink-soft); }
+.settings-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.link-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.link-row__label { max-width: 180px; }
+.post-toolbar { display: flex; justify-content: flex-end; }
+.post-list--tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px; }
+.post-list--tiles .post-row { background: #fff; border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card); padding: 18px; }
+
+@media (max-width: 760px) {
+  .listing-detail { grid-template-columns: 1fr; gap: 24px; }
+  .market-row__thumb { width: 90px; height: 72px; }
+}

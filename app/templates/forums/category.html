@@ -62,7 +62,18 @@
     <p><a href="{{ url_for('auth.login', next=request.path) }}">Sign in</a> to join the conversation.</p>
     {% endif %}
 
-    <div class="post-list" style="margin-top: 32px;">
+    {% if posts %}
+    <div class="post-toolbar">
+      <span class="view-toggle">
+        <a href="{{ url_for('forums.category', slug=category.slug, tag=active_tag.slug if active_tag, view='tiles') }}"
+           class="{{ 'active' if view != 'list' }}" title="Tiles" aria-label="Tile view">&#9638;</a>
+        <a href="{{ url_for('forums.category', slug=category.slug, tag=active_tag.slug if active_tag, view='list') }}"
+           class="{{ 'active' if view == 'list' }}" title="List" aria-label="List view">&#9776;</a>
+      </span>
+    </div>
+    {% endif %}
+
+    <div class="post-list post-list--{{ view }}" style="margin-top: 20px;">
       {% for post in posts %}
       <a class="post-row" href="{{ url_for('forums.post', post_id=post.id) }}">
         <div class="post-row__votes">&#9829; {{ post.like_count() }}</div>

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% from "partials/avatar.html" import avatar, author_name %}
+{% block title %}Marketplace — {{ site.site_title }}{% endblock %}
+
+{% macro qs(overrides) -%}
+  {%- set args = {'kind': kind, 'q': q, 'tag': tag, 'location': location, 'sort': sort, 'view': view} -%}
+  {%- set _ = args.update(overrides) -%}
+  {{- url_for('main.marketplace', **args) -}}
+{%- endmacro %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <div class="market-head">
+      <div>
+        <p class="eyebrow">By the community</p>
+        <h1>Marketplace</h1>
+        <p class="subline">Products and services from our members. We point you to the maker &mdash; you buy on their own site.</p>
+      </div>
+      {% if current_user.is_authenticated and current_user.is_member() %}
+      <a class="btn btn--primary" href="{{ url_for('main.my_listings') }}">Your listings</a>
+      {% endif %}
+    </div>
+
+    <!-- category tabs -->
+    <div class="filter-tabs">
+      <a href="{{ qs({'kind': none}) }}" class="{{ 'active' if not kind }}">Everything</a>
+      <a href="{{ qs({'kind': 'product'}) }}" class="{{ 'active' if kind == 'product' }}">Digital products</a>
+      <a href="{{ qs({'kind': 'service'}) }}" class="{{ 'active' if kind == 'service' }}">Services</a>
+    </div>
+
+    <!-- filters row -->
+    <form class="market-filters" method="get" action="{{ url_for('main.marketplace') }}">
+      {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+      <input type="hidden" name="view" value="{{ view }}">
+      <input type="search" name="q" value="{{ q }}" placeholder="Search listings">
+      {% if kind != 'product' %}
+      <input type="text" name="location" value="{{ location }}" placeholder="Location (services)">
+      {% endif %}
+      <select name="sort" onchange="this.form.submit()">
+        {% for key, label in sorts.items() %}
+        <option value="{{ key }}" {{ 'selected' if sort == key }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn--secondary btn--sm" type="submit">Filter</button>
+      <span class="view-toggle">
+        <a href="{{ qs({'view': 'tiles'}) }}" class="{{ 'active' if view != 'list' }}" title="Tiles" aria-label="Tile view">&#9638;</a>
+        <a href="{{ qs({'view': 'list'}) }}" class="{{ 'active' if view == 'list' }}" title="List" aria-label="List view">&#9776;</a>
+      </span>
+    </form>
+
+    {% if all_tags %}
+    <div class="tag-cloud">
+      <a href="{{ qs({'tag': none}) }}" class="tag-chip {{ 'active' if not tag }}">All tags</a>
+      {% for t in all_tags %}
+      <a href="{{ qs({'tag': t}) }}" class="tag-chip {{ 'active' if tag == t }}">{{ t }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not listings %}
+    <div class="empty-state"><p>Nothing here yet. {% if current_user.is_authenticated and current_user.is_member() %}<a href="{{ url_for('main.listing_form') }}">Be the first to list something.</a>{% else %}Check back soon.{% endif %}</p></div>
+    {% elif view == 'list' %}
+    <div class="market-list">
+      {% for ln in listings %}
+      <article class="market-row">
+        <a class="market-row__thumb" href="{{ url_for('main.listing_detail', listing_id=ln.id) }}">
+          {% if ln.thumb() %}<img src="{{ url_for('main.listing_image', image_id=ln.thumb().id) }}" alt="{{ ln.title }}" loading="lazy">
+          {% else %}<span class="market-row__ph">{{ '&#128230;'|safe if ln.kind == 'product' else '&#128736;'|safe }}</span>{% endif %}
+        </a>
+        <div class="market-row__body">
+          <span class="type-pill">{{ ln.kind_label() }}</span>
+          <h3><a href="{{ url_for('main.listing_detail', listing_id=ln.id) }}">{{ ln.title }}</a></h3>
+          <p>{{ ln.description|truncate(140) }}</p>
+          <div class="market-row__meta">
+            {% if ln.price %}<span class="market-price">{{ ln.price }}</span>{% endif %}
+            {% if ln.location %}<span class="market-loc">{{ ln.location }}</span>{% endif %}
+            {{ author_name(ln.author, false) }}
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="market-grid">
+      {% for ln in listings %}
+      <article class="market-card">
+        <a class="market-card__thumb" href="{{ url_for('main.listing_detail', listing_id=ln.id) }}">
+          {% if ln.thumb() %}<img src="{{ url_for('main.listing_image', image_id=ln.thumb().id) }}" alt="{{ ln.title }}" loading="lazy">
+          {% else %}<span class="market-card__ph">{{ '&#128230;'|safe if ln.kind == 'product' else '&#128736;'|safe }}</span>{% endif %}
+          <span class="market-card__pill">{{ ln.kind_label() }}</span>
+        </a>
+        <div class="market-card__body">
+          <h3><a href="{{ url_for('main.listing_detail', listing_id=ln.id) }}">{{ ln.title }}</a></h3>
+          <p>{{ ln.description|truncate(96) }}</p>
+          <div class="market-card__meta">
+            {% if ln.price %}<span class="market-price">{{ ln.price }}</span>{% endif %}
+            {% if ln.location %}<span class="market-loc">{{ ln.location }}</span>{% endif %}
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

@@ -72,9 +72,14 @@
     <span class="delta">{{ memberships.none }} free &middot; {{ memberships.total }} total</span>
   </div>
   <div class="stat-card">
-    <div class="label">Videos</div>
+    <div class="label">Content Library</div>
     <div class="value">{{ video_count }}</div>
     <span class="delta"><a href="{{ url_for('admin.videos') }}">Manage &rarr;</a></span>
+  </div>
+  <div class="stat-card">
+    <div class="label">Marketplace listings</div>
+    <div class="value">{{ marketplace.active }}</div>
+    <span class="delta">{{ marketplace.total }} total &middot; <a href="{{ url_for('admin.marketplace') }}">Manage &rarr;</a></span>
   </div>
 </div>
 

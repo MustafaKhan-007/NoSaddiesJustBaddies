@@ -47,6 +47,8 @@ def lemonsqueezy():
         attrs = data.get("attributes") or {}
         first_item = attrs.get("first_order_item") or {}
         status = attrs.get("status") or ("refunded" if event == "order_refunded" else "paid")
+        custom = ((payload.get("meta") or {}).get("custom_data") or {})
+        gift_to = custom.get("gift_to") or None
 
         upsert_order(
             ls_order_id=data.get("id"),
@@ -55,6 +57,7 @@ def lemonsqueezy():
             total_cents=int(attrs.get("total") or 0),
             currency=attrs.get("currency") or "USD",
             status=status,
+            gift_to=gift_to,
         )
         db.session.commit()
         log.info("webhook: %s processed (order %s)", event, data.get("id"))

@@ -28,6 +28,20 @@
       </p>
       <a href="{{ product.ls_checkout_url }}" class="btn btn--primary lemonsqueezy-button">Get {{ product.type_label().lower() }} now</a>
       <p class="trust-line">Secure checkout &middot; Cards &amp; PayPal &middot; Instant delivery by email</p>
+
+      {% if product.ls_checkout_url %}
+      <details class="gift-box">
+        <summary>&#127873; Gift this to a friend</summary>
+        <form method="post" action="{{ url_for('main.gift_checkout', slug=product.slug) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <p class="field-help">Your friend needs a free account first. We'll add access to their space the moment your payment clears.</p>
+          <div class="gift-row">
+            <input type="email" name="gift_email" placeholder="friend@example.com" required>
+            <button class="btn btn--secondary btn--sm" type="submit">Gift &amp; checkout</button>
+          </div>
+        </form>
+      </details>
+      {% endif %}
     </div>
   </div>
 </section>

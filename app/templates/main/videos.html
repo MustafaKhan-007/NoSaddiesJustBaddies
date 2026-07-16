@@ -1,23 +1,26 @@
 {% extends "base.html" %}
-{% block title %}Video room — {{ site.site_title }}{% endblock %}
+{% block title %}Content Library — {{ site.site_title }}{% endblock %}
 
 {% block content %}
 <section class="section">
   <div class="container">
-    <p class="eyebrow">Creator members only</p>
-    <h1>The video room</h1>
-    <p style="color: var(--ink-soft); max-width: 60ch;">Longer-form videos, made just for you. Watch here whenever you need them &mdash; nothing to download, always right where you left it.</p>
+    <p class="eyebrow">{{ 'Creator members watch' if not can_play else 'Content Library' }}</p>
+    <h1>The Content Library</h1>
+    <p style="color: var(--ink-soft); max-width: 60ch;">Longer-form videos, made just for you.
+      {% if can_play %}Watch here whenever you need them &mdash; nothing to download, always right where you left it.
+      {% else %}Browse what's inside on Healing; upgrade to Creator to press play.{% endif %}</p>
 
     {% if videos %}
     <div class="video-grid">
       {% for v in videos %}
-      <a class="video-card" href="{{ url_for('main.watch', video_id=v.id) }}">
+      <a class="video-card {{ 'video-card--locked' if not can_play }}" href="{{ url_for('main.watch', video_id=v.id) }}">
         <div class="video-card__thumb">
           {% if v.has_thumb() %}
           <img src="{{ url_for('main.video_thumb', video_id=v.id) }}" alt="" loading="lazy">
           {% else %}
           <span class="video-card__play" aria-hidden="true">&#9654;</span>
           {% endif %}
+          {% if not can_play %}<span class="video-card__lock" aria-hidden="true">&#128274;</span>{% endif %}
         </div>
         <div class="video-card__body">
           <h3>{{ v.title }}</h3>

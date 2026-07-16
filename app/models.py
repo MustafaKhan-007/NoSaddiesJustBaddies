@@ -454,6 +454,9 @@ class Order(db.Model):
     ls_variant_id = db.Column(db.String(40))
     product_id = db.Column(db.Integer, db.ForeignKey("products.id"))
     buyer_email = db.Column(db.String(255), nullable=False, index=True)
+    # if the buyer gifted this to a friend, the friend's account email gets
+    # access to the product's files instead of/along with the buyer
+    gift_to_email = db.Column(db.String(255), index=True)
     total_cents = db.Column(db.Integer, nullable=False, default=0)
     currency = db.Column(db.String(3), nullable=False, default="USD")
     status = db.Column(db.String(20), nullable=False, default="paid")
@@ -638,3 +641,78 @@ class ForumCommentLike(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     comment_id = db.Column(db.Integer, db.ForeignKey("forum_comments.id"), nullable=False)
+
+
+# --- announcements ----------------------------------------------------------
+
+class Announcement(db.Model):
+    """A home-page announcement. Several can be live at once; they stack tidily.
+    Non-dismissible; the owner sets an optional expiry."""
+    __tablename__ = "announcements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.String(300), nullable=False)
+    expires = db.Column(db.Date)   # None = never expires
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+    def is_live(self) -> bool:
+        return self.expires is None or self.expires >= date.today()
+
+
+# --- marketplace ------------------------------------------------------------
+
+MARKETPLACE_KINDS = ("product", "service")
+MARKETPLACE_KIND_LABELS = {"product": "Digital product", "service": "Service"}
+#: how many active listings each tier may run at once (creator = unlimited)
+MARKETPLACE_LIMITS = {"none": 0, "healing": 1, "creator": None}
+
+
+class MarketplaceListing(db.Model):
+    """A member-run advert for a digital product or a service. We only
+    advertise here and redirect to the seller's own site — no checkout."""
+    __tablename__ = "marketplace_listings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    kind = db.Column(db.String(20), nullable=False, default="product")  # product / service
+    title = db.Column(db.String(140), nullable=False)
+    description = db.Column(db.Text, nullable=False, default="")
+    location = db.Column(db.String(120))     # services only
+    price = db.Column(db.String(80))         # free text, e.g. "$49" or "From $20/hr"
+    website_url = db.Column(db.String(500), nullable=False)
+    tags_json = db.Column(db.Text)           # JSON list of free-form tags
+    clicks = db.Column(db.Integer, nullable=False, default=0)  # outbound clicks (popularity)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+    author = db.relationship("User")
+    images = db.relationship("ListingImage", backref="listing", lazy="select",
+                             order_by="ListingImage.sort_order",
+                             cascade="all, delete-orphan")
+
+    def kind_label(self):
+        return MARKETPLACE_KIND_LABELS.get(self.kind, "Listing")
+
+    def tags(self) -> list:
+        try:
+            return json.loads(self.tags_json) if self.tags_json else []
+        except ValueError:
+            return []
+
+    def set_tags(self, tags) -> None:
+        self.tags_json = json.dumps(list(tags)) if tags else None
+
+    def thumb(self):
+        return self.images[0] if self.images else None
+
+
+class ListingImage(db.Model):
+    __tablename__ = "listing_images"
+
+    id = db.Column(db.Integer, primary_key=True)
+    listing_id = db.Column(db.Integer, db.ForeignKey("marketplace_listings.id"),
+                           nullable=False, index=True)
+    data = db.Column(db.LargeBinary, nullable=False)
+    mime = db.Column(db.String(40), nullable=False, default="image/jpeg")
+    sort_order = db.Column(db.Integer, nullable=False, default=0)

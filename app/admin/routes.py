@@ -20,9 +20,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import (FaqItem, ForumComment, ForumPost, MEMBERSHIPS,
-                      MembershipPlan, Order, Page,
-                      Product, PRODUCT_SUBJECTS, ProductAsset, Quote,
+from ..models import (Announcement, FaqItem, ForumComment, ForumPost,
+                      MEMBERSHIPS, MarketplaceListing, MembershipPlan, Order,
+                      Page, Product, PRODUCT_SUBJECTS, ProductAsset, Quote,
                       QuoteFavorite, QuotePin, Subscriber, Testimonial, User,
                       Video, QUOTE_CATEGORIES)
 from ..services import badges as badges_service
@@ -116,6 +116,7 @@ def dashboard():
         most_visited=stats.most_visited(7),
         memberships=stats.membership_breakdown(),
         video_count=stats.video_count(),
+        marketplace=stats.marketplace_counts(),
     )
 
 
@@ -691,12 +692,70 @@ def settings():
             set_setting("announcement_expires", "")
             flash("Announcement removed.", "success")
             return redirect(url_for("admin.settings"))
+        if request.form.get("add_announcement"):
+            body = (request.form.get("ann_body") or "").strip()[:300]
+            if body:
+                expires = None
+                raw = (request.form.get("ann_expires") or "").strip()
+                if raw:
+                    try:
+                        expires = date.fromisoformat(raw)
+                    except ValueError:
+                        expires = None
+                db.session.add(Announcement(body=body, expires=expires))
+                db.session.commit()
+                flash("Announcement added.", "success")
+            else:
+                flash("Write something first.", "error")
+            return redirect(url_for("admin.settings"))
+        remove_id = request.form.get("remove_announcement")
+        if remove_id and remove_id.isdigit():
+            ann = db.session.get(Announcement, int(remove_id))
+            if ann:
+                db.session.delete(ann)
+                db.session.commit()
+            flash("Announcement removed.", "success")
+            return redirect(url_for("admin.settings"))
         for key in SETTING_DEFAULTS:
             set_setting(key, (request.form.get(key) or "").strip())
         flash("Settings saved.", "success")
         return redirect(url_for("admin.settings"))
+    announcements = (Announcement.query
+                     .order_by(Announcement.sort_order, Announcement.created_at.desc()).all())
     return render_template("admin/settings.html", values=all_settings(),
-                           spotlight=_spotlight_candidates())
+                           spotlight=_spotlight_candidates(),
+                           announcements=announcements, today=date.today())
+
+
+# ============================ MARKETPLACE ====================================
+
+@bp.route("/marketplace")
+@admin_required
+def marketplace():
+    listings = (MarketplaceListing.query
+                .order_by(MarketplaceListing.active.desc(),
+                          MarketplaceListing.created_at.desc()).all())
+    return render_template("admin/marketplace.html", listings=listings)
+
+
+@bp.route("/marketplace/<int:listing_id>/toggle", methods=["POST"])
+@admin_required
+def marketplace_toggle(listing_id):
+    ln = db.session.get(MarketplaceListing, listing_id) or abort(404)
+    ln.active = not ln.active
+    db.session.commit()
+    flash("Listing hidden." if not ln.active else "Listing restored.", "success")
+    return redirect(url_for("admin.marketplace"))
+
+
+@bp.route("/marketplace/<int:listing_id>/delete", methods=["POST"])
+@admin_required
+def marketplace_delete(listing_id):
+    ln = db.session.get(MarketplaceListing, listing_id) or abort(404)
+    db.session.delete(ln)
+    db.session.commit()
+    flash("Listing deleted.", "success")
+    return redirect(url_for("admin.marketplace"))
 
 
 # =============================== VIDEOS ======================================

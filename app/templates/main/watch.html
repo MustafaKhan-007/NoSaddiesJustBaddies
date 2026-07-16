@@ -1,11 +1,12 @@
 {% extends "base.html" %}
-{% block title %}{{ video.title }} — Video room — {{ site.site_title }}{% endblock %}
+{% block title %}{{ video.title }} — Content Library — {{ site.site_title }}{% endblock %}
 
 {% block content %}
 <section class="section">
   <div class="container" style="max-width: 900px;">
-    <p class="eyebrow"><a href="{{ url_for('main.videos') }}">&larr; Video room</a></p>
+    <p class="eyebrow"><a href="{{ url_for('main.videos') }}">&larr; Content Library</a></p>
 
+    {% if can_play %}
     <div class="video-player">
       <video controls playsinline preload="metadata"
              {% if video.has_thumb() %}poster="{{ url_for('main.video_thumb', video_id=video.id) }}"{% endif %}
@@ -14,6 +15,17 @@
         Your browser can't play this video.
       </video>
     </div>
+    {% else %}
+    <div class="video-locked"
+         {% if video.has_thumb() %}style="background-image:url('{{ url_for('main.video_thumb', video_id=video.id) }}')"{% endif %}>
+      <div class="video-locked__veil">
+        <span class="video-locked__icon" aria-hidden="true">&#128274;</span>
+        <h2>Creator members only</h2>
+        <p>You can browse the Content Library on Healing, but watching is a Creator perk.</p>
+        <a class="btn btn--primary" href="{{ url_for('main.membership') }}">Upgrade to Creator</a>
+      </div>
+    </div>
+    {% endif %}
 
     <h1>{{ video.title }}</h1>
     <p style="color: var(--ink-soft);">{{ video.created_at.strftime('%B %d, %Y') }}</p>

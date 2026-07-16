@@ -1,0 +1,40 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Marketplace{% endblock %}
+
+{% block content %}
+<h1>Marketplace</h1>
+<p class="field-help">Member-run adverts. Hide anything off-brand, or delete it outright.
+  Listings are also hidden automatically when a member's plan is cancelled.</p>
+
+{% if not listings %}
+<div class="empty-state"><p>No listings yet.</p></div>
+{% else %}
+<table class="admin-table">
+  <thead>
+    <tr><th>Title</th><th>Kind</th><th>Seller</th><th>Clicks</th><th>Status</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for ln in listings %}
+    <tr>
+      <td><a href="{{ url_for('main.listing_detail', listing_id=ln.id) }}" target="_blank" rel="noopener">{{ ln.title }}</a></td>
+      <td>{{ ln.kind_label() }}</td>
+      <td>{{ ln.author.public_name() }} <span class="field-help">({{ ln.author.membership_label() }})</span></td>
+      <td>{{ ln.clicks }}</td>
+      <td>{{ 'Live' if ln.active else 'Hidden' }}</td>
+      <td class="admin-table__actions">
+        <form method="post" action="{{ url_for('admin.marketplace_toggle', listing_id=ln.id) }}" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn--secondary btn--sm" type="submit">{{ 'Hide' if ln.active else 'Restore' }}</button>
+        </form>
+        <form method="post" action="{{ url_for('admin.marketplace_delete', listing_id=ln.id) }}"
+              data-confirm="Delete this listing for good?" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn--danger btn--sm" type="submit">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

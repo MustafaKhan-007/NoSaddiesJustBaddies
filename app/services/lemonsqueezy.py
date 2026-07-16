@@ -20,7 +20,8 @@ TIMEOUT = 15
 
 
 def upsert_order(ls_order_id: str, ls_variant_id: str | None, buyer_email: str,
-                 total_cents: int, currency: str, status: str, created_at=None) -> Order:
+                 total_cents: int, currency: str, status: str, created_at=None,
+                 gift_to: str | None = None) -> Order:
     """Insert or update an order row; idempotent on ls_order_id."""
     order = Order.query.filter_by(ls_order_id=str(ls_order_id)).first()
     if order is None:
@@ -28,6 +29,8 @@ def upsert_order(ls_order_id: str, ls_variant_id: str | None, buyer_email: str,
         db.session.add(order)
     order.ls_variant_id = str(ls_variant_id) if ls_variant_id else order.ls_variant_id
     order.buyer_email = buyer_email.strip().lower()
+    if gift_to:
+        order.gift_to_email = gift_to.strip().lower()
     order.total_cents = total_cents
     order.currency = (currency or "USD").upper()
     order.status = status

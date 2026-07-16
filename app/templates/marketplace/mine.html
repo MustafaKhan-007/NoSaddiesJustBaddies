@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Your listings — Marketplace{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container" style="max-width: 760px;">
+    <p class="eyebrow"><a href="{{ url_for('main.marketplace') }}">&larr; Marketplace</a></p>
+    <div class="market-head">
+      <div>
+        <h1>Your listings</h1>
+        <p class="field-help">
+          {% if limit is none %}Creator members get unlimited listings.
+          {% else %}Your plan allows {{ limit }} active listing{{ 's' if limit != 1 }}.{% endif %}
+        </p>
+      </div>
+      {% if can_add %}
+      <a class="btn btn--primary" href="{{ url_for('main.listing_form') }}">New listing</a>
+      {% else %}
+      <a class="btn btn--secondary" href="{{ url_for('main.membership') }}">Upgrade for more</a>
+      {% endif %}
+    </div>
+
+    {% if not listings %}
+    <div class="empty-state"><p>No listings yet. <a href="{{ url_for('main.listing_form') }}">Create your first one.</a></p></div>
+    {% else %}
+    <div class="market-list">
+      {% for ln in listings %}
+      <article class="market-row {{ 'is-inactive' if not ln.active }}">
+        <a class="market-row__thumb" href="{{ url_for('main.listing_detail', listing_id=ln.id) }}">
+          {% if ln.thumb() %}<img src="{{ url_for('main.listing_image', image_id=ln.thumb().id) }}" alt="" loading="lazy">
+          {% else %}<span class="market-row__ph">{{ '&#128230;'|safe if ln.kind == 'product' else '&#128736;'|safe }}</span>{% endif %}
+        </a>
+        <div class="market-row__body">
+          <span class="type-pill">{{ ln.kind_label() }}</span>
+          {% if not ln.active %}<span class="type-pill type-pill--muted">Hidden</span>{% endif %}
+          <h3>{{ ln.title }}</h3>
+          <p class="field-help">{{ ln.clicks }} click{{ 's' if ln.clicks != 1 }} to your site</p>
+          <div class="market-row__meta">
+            <a class="btn btn--secondary btn--sm" href="{{ url_for('main.listing_form', listing_id=ln.id) }}">Edit</a>
+            <form method="post" action="{{ url_for('main.listing_delete', listing_id=ln.id) }}"
+                  data-confirm="Remove this listing?" style="display:inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn--danger btn--sm" type="submit">Delete</button>
+            </form>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if listings and not can_add and limit is not none %}
+    <p class="field-help" style="margin-top: 16px;">You're at your active-listing limit. Delete one or
+      <a href="{{ url_for('main.membership') }}">upgrade to Creator</a> for unlimited.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

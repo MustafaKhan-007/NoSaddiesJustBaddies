@@ -9,7 +9,7 @@ from ..models import Setting
 SECRET_KEY_SETTING = "_secret_key"
 
 DEFAULTS = {
-    "site_title": "First Light",
+    "site_title": "Bloom Anyway",
     "instagram_url": "https://instagram.com/",
     "hero_image_url": "",
     "portrait_url": "",
@@ -92,6 +92,19 @@ def active_announcement() -> str:
         except ValueError:
             pass
     return text
+
+
+def active_announcements() -> list[str]:
+    """All live announcements (multi + the legacy single), newest first."""
+    from ..models import Announcement
+    out = []
+    legacy = active_announcement()
+    if legacy:
+        out.append(legacy)
+    rows = (Announcement.query
+            .order_by(Announcement.sort_order, Announcement.created_at.desc()).all())
+    out.extend(a.body for a in rows if a.is_live())
+    return out
 
 
 def invalidate_cache() -> None:

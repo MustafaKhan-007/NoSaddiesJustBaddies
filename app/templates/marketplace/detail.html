@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "partials/avatar.html" import avatar %}
+{% block title %}{{ listing.title }} — Marketplace{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <p class="eyebrow"><a href="{{ url_for('main.marketplace', kind=listing.kind) }}">&larr; Back to marketplace</a></p>
+    <div class="listing-detail">
+      <div class="listing-detail__media">
+        {% if listing.images %}
+        <img class="listing-detail__hero" id="listing-hero"
+             src="{{ url_for('main.listing_image', image_id=listing.images[0].id) }}" alt="{{ listing.title }}">
+        {% if listing.images|length > 1 %}
+        <div class="listing-thumbs">
+          {% for img in listing.images %}
+          <img src="{{ url_for('main.listing_image', image_id=img.id) }}" alt="" loading="lazy"
+               onclick="document.getElementById('listing-hero').src=this.src">
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="listing-detail__ph">{{ '&#128230;'|safe if listing.kind == 'product' else '&#128736;'|safe }}</div>
+        {% endif %}
+      </div>
+
+      <div class="listing-detail__info">
+        <span class="type-pill">{{ listing.kind_label() }}</span>
+        <h1>{{ listing.title }}</h1>
+        <div class="listing-detail__meta">
+          {% if listing.price %}<span class="market-price market-price--lg">{{ listing.price }}</span>{% endif %}
+          {% if listing.location %}<span class="market-loc">&#128205; {{ listing.location }}</span>{% endif %}
+        </div>
+        {% if listing.tags() %}
+        <div class="tag-cloud">
+          {% for t in listing.tags() %}
+          <a class="tag-chip" href="{{ url_for('main.marketplace', kind=listing.kind, tag=t) }}">{{ t }}</a>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div class="listing-desc">{{ listing.description|nl2br }}</div>
+        <a class="btn btn--primary" href="{{ url_for('main.listing_go', listing_id=listing.id) }}"
+           target="_blank" rel="noopener nofollow">Visit the seller's site &rarr;</a>
+        <p class="trust-line">You'll be taken to {{ listing.author.public_name() }}'s own website to buy. Bloom Anyway only advertises here.</p>
+
+        <div class="seller-card">
+          <a href="{{ url_for('main.profile', user_id=listing.author.id) }}">{{ avatar(listing.author, 'md') }}</a>
+          <div>
+            <strong><a class="author-link" href="{{ url_for('main.profile', user_id=listing.author.id) }}">{{ listing.author.public_name() }}</a></strong>
+            {% if listing.author.bio %}<p class="field-help">{{ listing.author.bio }}</p>{% endif %}
+          </div>
+        </div>
+
+        {% if current_user.is_authenticated and current_user.id == listing.user_id %}
+        <p style="margin-top: 16px;"><a class="btn--quiet" href="{{ url_for('main.listing_form', listing_id=listing.id) }}">Edit this listing</a></p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

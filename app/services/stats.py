@@ -5,8 +5,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import (ForumPost, Order, PageView, Product, Subscriber, User,
-                      Video)
+from ..models import (ForumPost, MarketplaceListing, Order, PageView, Product,
+                      Subscriber, User, Video)
 
 PAID_STATUSES = ("paid",)
 
@@ -164,6 +164,13 @@ def membership_breakdown() -> dict:
 
 def video_count() -> int:
     return db.session.query(func.count(Video.id)).scalar() or 0
+
+
+def marketplace_counts() -> dict:
+    active = db.session.query(func.count(MarketplaceListing.id)).filter(
+        MarketplaceListing.active.is_(True)).scalar() or 0
+    total = db.session.query(func.count(MarketplaceListing.id)).scalar() or 0
+    return {"active": active, "total": total}
 
 
 def most_visited(days: int = 7, limit: int = 10):

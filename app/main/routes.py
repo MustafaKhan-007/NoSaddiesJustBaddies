@@ -4,6 +4,7 @@ import logging
 import os
 import re
 from datetime import date, datetime
+from urllib.parse import quote
 
 from flask import (Response, abort, current_app, flash, redirect,
                    render_template, request, send_file, url_for)
@@ -12,9 +13,11 @@ from flask_login import current_user, login_required
 from ..extensions import db, limiter
 from sqlalchemy import func
 
-from ..models import (PRODUCT_SUBJECTS, ContactMessage, FaqItem, MembershipPlan,
-                      Order, Page, Product, ProductAsset, Quote, QuoteFavorite,
-                      Subscriber, Testimonial, User, Video, utcnow)
+from ..models import (MARKETPLACE_KINDS, MARKETPLACE_KIND_LABELS,
+                      PRODUCT_SUBJECTS, ContactMessage, FaqItem, ListingImage,
+                      MarketplaceListing, MembershipPlan, Order, Page, Product,
+                      ProductAsset, Quote, QuoteFavorite, Subscriber,
+                      Testimonial, User, Video, utcnow)
 from ..services import quotes as quotes_service
 from ..services import settings as settings_service
 from ..services.assets import docx_to_html
@@ -23,6 +26,8 @@ from ..services.badges import CATEGORIES, category_progress, earned_badges
 from ..services.journey import build_journey_pdf
 from ..services.mailer import send_contact_notification
 from ..services.recommend import INTENTS, recommend_products, valid_intent_keys
+from ..services.listings import (ListingError, can_add_listing, listing_limit,
+                                 process_listing_image)
 from ..services.social import (ALLOWED_LABELS, clean_social_links,
                                instagram_embed_url)
 from . import bp
@@ -89,9 +94,15 @@ def _spotlight_context():
     site = settings_service.all_settings()
     creator = None
     if (site.get("creator_name") or "").strip():
+        ig = (site.get("creator_instagram") or "").strip()
+        handle = ""
+        if ig:
+            handle = re.sub(r"^https?://(www\.)?instagram\.com/", "", ig).strip("/").split("/")[0]
+            handle = handle.lstrip("@")
         creator = {
             "name": site["creator_name"].strip(),
-            "instagram": (site.get("creator_instagram") or "").strip(),
+            "instagram": ig,
+            "handle": handle,
             "image": (site.get("creator_image_url") or "").strip(),
             "blurb": (site.get("creator_blurb") or "").strip(),
         }
@@ -182,6 +193,201 @@ def membership():
                            matrix=MEMBERSHIP_MATRIX, current=current)
 
 
+# --- marketplace (member adverts; we redirect out, we don't sell) ----------
+
+MARKETPLACE_SORTS = {"popular": "Most popular", "new": "Newest"}
+
+
+@bp.route("/marketplace")
+def marketplace():
+    kind = request.args.get("kind")
+    if kind not in MARKETPLACE_KINDS:
+        kind = None
+    q = (request.args.get("q") or "").strip()
+    tag = (request.args.get("tag") or "").strip()
+    location = (request.args.get("location") or "").strip()
+    sort = request.args.get("sort", "popular")
+    view = "list" if request.args.get("view") == "list" else "tiles"
+
+    base = MarketplaceListing.query.filter_by(active=True)
+    if kind:
+        base = base.filter_by(kind=kind)
+    query = base
+    if q:
+        like = f"%{q}%"
+        query = query.filter(db.or_(MarketplaceListing.title.ilike(like),
+                                    MarketplaceListing.description.ilike(like)))
+    if location:
+        query = query.filter(MarketplaceListing.location.ilike(f"%{location}%"))
+    if sort == "new":
+        query = query.order_by(MarketplaceListing.created_at.desc())
+    else:
+        sort = "popular"
+        query = query.order_by(MarketplaceListing.clicks.desc(),
+                               MarketplaceListing.created_at.desc())
+    listings = query.all()
+    if tag:
+        listings = [ln for ln in listings if tag in ln.tags()]
+
+    # tag cloud from everything in the current category (so filters are stable)
+    all_tags = sorted({t for ln in base.all() for t in ln.tags()})
+    return render_template("marketplace/index.html", listings=listings,
+                           kind=kind, kinds=MARKETPLACE_KIND_LABELS, q=q, tag=tag,
+                           location=location, sort=sort, sorts=MARKETPLACE_SORTS,
+                           view=view, all_tags=all_tags)
+
+
+@bp.route("/marketplace/l/<int:listing_id>")
+def listing_detail(listing_id):
+    ln = db.session.get(MarketplaceListing, listing_id)
+    if ln is None or not ln.active:
+        abort(404)
+    return render_template("marketplace/detail.html", listing=ln)
+
+
+@bp.route("/marketplace/image/<int:image_id>")
+def listing_image(image_id):
+    img = db.session.get(ListingImage, image_id)
+    if img is None:
+        abort(404)
+    resp = Response(bytes(img.data), mimetype=img.mime or "image/jpeg")
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+@bp.route("/marketplace/go/<int:listing_id>")
+def listing_go(listing_id):
+    ln = db.session.get(MarketplaceListing, listing_id)
+    if ln is None or not ln.active:
+        abort(404)
+    url = ln.website_url or ""
+    if not url.lower().startswith(("http://", "https://")):
+        abort(404)
+    ln.clicks = (ln.clicks or 0) + 1
+    db.session.commit()
+    return redirect(url)
+
+
+@bp.route("/marketplace/mine")
+@login_required
+def my_listings():
+    if not current_user.is_member():
+        flash("The marketplace is a members' perk \u2014 join to advertise your "
+              "products and services.", "info")
+        return redirect(url_for("main.membership"))
+    mine = (MarketplaceListing.query.filter_by(user_id=current_user.id)
+            .order_by(MarketplaceListing.active.desc(),
+                      MarketplaceListing.created_at.desc()).all())
+    return render_template("marketplace/mine.html", listings=mine,
+                           limit=listing_limit(current_user),
+                           can_add=can_add_listing(current_user))
+
+
+def _collect_listing_tags(raw):
+    seen, out = set(), []
+    for part in (raw or "").replace("\n", ",").split(","):
+        t = part.strip()[:30]
+        if t and t.lower() not in seen:
+            seen.add(t.lower())
+            out.append(t)
+        if len(out) >= 12:
+            break
+    return out
+
+
+@bp.route("/marketplace/new", methods=["GET", "POST"])
+@bp.route("/marketplace/<int:listing_id>/edit", methods=["GET", "POST"])
+@login_required
+def listing_form(listing_id=None):
+    if not current_user.is_member():
+        flash("The marketplace is a members' perk \u2014 join to advertise here.", "info")
+        return redirect(url_for("main.membership"))
+
+    listing = None
+    if listing_id:
+        listing = db.session.get(MarketplaceListing, listing_id)
+        if listing is None or listing.user_id != current_user.id:
+            abort(404)
+
+    if request.method == "POST":
+        kind = request.form.get("kind")
+        if kind not in MARKETPLACE_KINDS:
+            kind = "product"
+        title = (request.form.get("title") or "").strip()[:140]
+        description = (request.form.get("description") or "").strip()
+        website = (request.form.get("website_url") or "").strip()[:500]
+        price = (request.form.get("price") or "").strip()[:80] or None
+        location = (request.form.get("location") or "").strip()[:120] or None
+        tags = _collect_listing_tags(request.form.get("tags"))
+
+        errors = []
+        if not title:
+            errors.append("Give your listing a title.")
+        if not website.lower().startswith(("http://", "https://")):
+            if website and not website.startswith(("http://", "https://")):
+                website = "https://" + website
+            if not website:
+                errors.append("Add the link where people can find it.")
+        if kind == "product":
+            location = None
+
+        # tier limit only matters when creating (or reactivating) a live listing
+        if listing is None and not can_add_listing(current_user):
+            lim = listing_limit(current_user)
+            errors.append(
+                f"Your plan allows {lim} active listing{'s' if lim != 1 else ''}. "
+                "Upgrade to Creator for unlimited, or remove one first.")
+
+        new_images = []
+        if not errors:
+            for f in request.files.getlist("images"):
+                if f and f.filename:
+                    try:
+                        new_images.append(process_listing_image(f))
+                    except ListingError as exc:
+                        errors.append(str(exc))
+
+        if errors:
+            for e in errors:
+                flash(e, "error")
+        else:
+            if listing is None:
+                listing = MarketplaceListing(user_id=current_user.id)
+                db.session.add(listing)
+            listing.kind = kind
+            listing.title = title
+            listing.description = description
+            listing.website_url = website
+            listing.price = price
+            listing.location = location
+            listing.set_tags(tags)
+            for img_id in request.form.getlist("remove_image"):
+                img = db.session.get(ListingImage, int(img_id)) if img_id.isdigit() else None
+                if img and img.listing_id == listing.id:
+                    db.session.delete(img)
+            start = len(listing.images)
+            for i, (data, mime) in enumerate(new_images):
+                listing.images.append(ListingImage(data=data, mime=mime, sort_order=start + i))
+            db.session.commit()
+            flash("Listing saved. It's live in the marketplace.", "success")
+            return redirect(url_for("main.my_listings"))
+
+    return render_template("marketplace/form.html", listing=listing,
+                           kinds=MARKETPLACE_KIND_LABELS)
+
+
+@bp.route("/marketplace/<int:listing_id>/delete", methods=["POST"])
+@login_required
+def listing_delete(listing_id):
+    listing = db.session.get(MarketplaceListing, listing_id)
+    if listing is None or listing.user_id != current_user.id:
+        abort(404)
+    db.session.delete(listing)
+    db.session.commit()
+    flash("Listing removed.", "success")
+    return redirect(url_for("main.my_listings"))
+
+
 @bp.route("/courses/<slug>")
 def product_detail(slug):
     product = Product.query.filter_by(slug=slug, status="published").first_or_404()
@@ -200,6 +406,34 @@ def product_detail(slug):
     return render_template("main/product_detail.html", product=product,
                            curriculum=curriculum, contents=contents,
                            related=related, testimonials=testimonials, faqs=faqs)
+
+
+@bp.route("/courses/<slug>/gift", methods=["POST"])
+def gift_checkout(slug):
+    """Send the buyer to checkout with a friend's account tagged as recipient.
+
+    The friend must already have an account; the gift email rides along as
+    Lemon Squeezy custom data and the webhook grants them access on payment.
+    """
+    product = Product.query.filter_by(slug=slug, status="published").first_or_404()
+    friend = (request.form.get("gift_email") or "").strip().lower()
+    if not friend:
+        flash("Add your friend's account email to gift this.", "error")
+        return redirect(url_for("main.product_detail", slug=slug))
+    recipient = (User.query
+                 .filter(func.lower(User.email) == friend, User.deleted_at.is_(None))
+                 .first())
+    if recipient is None:
+        flash("We couldn't find an account with that email. Ask your friend to "
+              "sign up first, then gift away.", "error")
+        return redirect(url_for("main.product_detail", slug=slug))
+    if not (product.ls_checkout_url or "").strip():
+        flash("This one isn't available for checkout yet.", "error")
+        return redirect(url_for("main.product_detail", slug=slug))
+    sep = "&" if "?" in product.ls_checkout_url else "?"
+    url = (product.ls_checkout_url + sep +
+           "checkout[custom][gift_to]=" + quote(friend, safe=""))
+    return redirect(url)
 
 
 @bp.route("/about")
@@ -285,10 +519,27 @@ def settings():
                            user_goals=set(current_user.goals()),
                            links=current_user.links(),
                            link_max=PROFILE_LINK_MAX,
-                           can_link=current_user.is_creator(),
-                           allowed_platforms=ALLOWED_LABELS,
+                           can_link=current_user.is_member(),
                            badge_progress=category_progress(current_user),
                            chosen_badges=set(current_user.displayed_badges()))
+
+
+@bp.route("/account/membership/cancel", methods=["POST"])
+@login_required
+def cancel_membership():
+    if current_user.is_admin:
+        flash("The owner account always keeps Creator access.", "info")
+        return redirect(url_for("main.settings"))
+    if current_user.membership == "none":
+        flash("You're on the free plan already.", "info")
+        return redirect(url_for("main.settings"))
+    current_user.membership = "none"
+    from ..services.listings import enforce_listing_limits
+    enforce_listing_limits(current_user)
+    db.session.commit()
+    flash("Your membership is cancelled. If you were billed through Lemon Squeezy, "
+          "also cancel the subscription there so you're not charged again.", "success")
+    return redirect(url_for("main.settings"))
 
 
 @bp.route("/account/checkin", methods=["POST"])
@@ -319,9 +570,9 @@ def update_profile():
     current_user.bio = bio or None
     current_user.default_anonymous = request.form.get("default_anonymous") == "1"
     current_user.set_goals(valid_intent_keys(request.form.getlist("goals")))
-    # profile links are a Creator perk, and only social platforms are allowed
-    if current_user.is_creator():
-        current_user.set_links(clean_social_links(_collect_profile_links(request.form)))
+    # profile links are a members' perk (Healing+); any link is allowed
+    if current_user.is_member():
+        current_user.set_links(_collect_profile_links(request.form))
     current_user.set_displayed_badges(_valid_badge_choices(request.form.getlist("badges_display")))
 
     if request.form.get("remove_avatar") == "1":
@@ -364,27 +615,31 @@ def _owns_product(user, product) -> bool:
         return False
     if user.is_admin:
         return True
+    email = (user.email or "").lower()
     return db.session.query(Order.id).filter(
         Order.product_id == product.id,
         Order.status == "paid",
-        func.lower(Order.buyer_email) == (user.email or "").lower(),
+        db.or_(func.lower(Order.buyer_email) == email,
+               func.lower(Order.gift_to_email) == email),
     ).first() is not None
 
 
 def _owned_products(user):
-    """Distinct products the user has bought that have readable files."""
+    """Distinct products the user has bought (or been gifted) with readable files."""
     if not user.is_authenticated:
         return []
+    email = (user.email or "").lower()
     products = (Product.query.join(Order, Order.product_id == Product.id)
                 .filter(Order.status == "paid",
-                        func.lower(Order.buyer_email) == (user.email or "").lower())
+                        db.or_(func.lower(Order.buyer_email) == email,
+                               func.lower(Order.gift_to_email) == email))
                 .order_by(Product.title).distinct().all())
     return [p for p in products if p.has_assets()]
 
 
 def is_premium(user) -> bool:
-    """My Journey + profile links are a Creator-membership perk (or owner)."""
-    return bool(getattr(user, "is_authenticated", False) and user.is_creator())
+    """My Journey + profile links are a members' perk (Healing/Creator or owner)."""
+    return bool(getattr(user, "is_authenticated", False) and user.is_member())
 
 
 @bp.route("/library/<slug>")
@@ -428,32 +683,33 @@ def library_asset(slug, asset_id):
     return resp
 
 
-# --- videos (Creator-membership perk) --------------------------------------
+# --- Content Library --------------------------------------------------------
+# Members (Healing+) can browse titles/thumbnails; only Creators can play.
 
-def _require_creator():
-    """Flash + redirect if the current user isn't a Creator member; else None."""
-    if not (getattr(current_user, "is_authenticated", False) and current_user.is_creator()):
-        flash("The video room is a Creator-membership perk \u2014 it's waiting when "
-              "you're ready.", "info")
-        return redirect(url_for("main.courses"))
+def _require_member_library():
+    """Flash + redirect if the user can't even browse the library; else None."""
+    if not (getattr(current_user, "is_authenticated", False) and current_user.is_member()):
+        flash("The Content Library is a members' perk \u2014 join to browse it.", "info")
+        return redirect(url_for("main.membership"))
     return None
 
 
 @bp.route("/watch")
 @login_required
 def videos():
-    guard = _require_creator()
+    guard = _require_member_library()
     if guard:
         return guard
     items = (Video.query.filter_by(published=True)
              .order_by(Video.sort_order, Video.created_at.desc()).all())
-    return render_template("main/videos.html", videos=items)
+    return render_template("main/videos.html", videos=items,
+                           can_play=current_user.is_creator())
 
 
 @bp.route("/watch/<int:video_id>")
 @login_required
 def watch(video_id):
-    guard = _require_creator()
+    guard = _require_member_library()
     if guard:
         return guard
     video = db.session.get(Video, video_id)
@@ -461,13 +717,14 @@ def watch(video_id):
         abort(404)
     more = (Video.query.filter(Video.published.is_(True), Video.id != video.id)
             .order_by(Video.sort_order, Video.created_at.desc()).limit(6).all())
-    return render_template("main/watch.html", video=video, more=more)
+    return render_template("main/watch.html", video=video, more=more,
+                           can_play=current_user.is_creator())
 
 
 @bp.route("/watch/<int:video_id>/thumb")
 @login_required
 def video_thumb(video_id):
-    if not (current_user.is_authenticated and current_user.is_creator()):
+    if not (current_user.is_authenticated and current_user.is_member()):
         abort(404)
     video = db.session.get(Video, video_id)
     if video is None or not video.thumb_data:

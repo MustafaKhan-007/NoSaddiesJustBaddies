@@ -747,6 +747,125 @@ with app.app_context():
     t = User.query.filter_by(email="prebuyer@example.com").first().membership
 ok("Pre-purchase is honoured at first login", t == "creator", f"got {t}")
 
+# --- 5g. healing perks, content library lock, marketplace, gifting ----------
+# banclient is signed in as rude@example.com (a Healing member)
+
+# Healing members may add ANY link and export My Journey (was Creator-only)
+r = banclient.get("/account/settings")
+ok("Healing member sees the links field", 'name="link_url_0"' in r.get_data(as_text=True))
+banclient.post("/account/profile", data={
+    "display_name": "Rue", "link_url_0": "https://my-own-site.example/shop",
+    "link_label_0": "My shop"}, follow_redirects=True)
+with app.app_context():
+    hlinks = User.query.filter_by(email="rude@example.com").first().links()
+ok("Healing member link saved (any URL allowed)",
+   any("my-own-site.example" in ln["url"] for ln in hlinks))
+r = banclient.get("/account/journey.pdf")
+ok("Healing member can export My Journey",
+   r.status_code == 200 and r.mimetype == "application/pdf")
+
+# Content Library: Healing can browse but not play; the page is locked
+r = banclient.get("/watch")
+ok("Healing member can browse the Content Library",
+   r.status_code == 200 and "Content Library" in r.get_data(as_text=True))
+r = banclient.get(f"/watch/{vid_id}")
+ok("Healing member sees the locked video page",
+   r.status_code == 200 and "Upgrade to Creator" in r.get_data(as_text=True))
+r = banclient.get(f"/watch/{vid_id}/stream")
+ok("Healing member can't stream a locked video", r.status_code == 404)
+
+# Marketplace
+from app.models import MarketplaceListing
+with app.app_context():
+    nf = User(email="nofrills@example.com", membership="none", email_verified_at=utcnow())
+    nf.set_password(USER_PW)
+    db.session.add(nf)
+    db.session.commit()
+nofrills = app.test_client()
+nofrills.post("/login", data={"email": "nofrills@example.com", "password": USER_PW})
+r = nofrills.get("/marketplace/mine", follow_redirects=False)
+ok("Free member can't run marketplace listings", r.status_code == 302)
+
+r = banclient.post("/marketplace/new", data={
+    "kind": "product", "title": "My ebook", "description": "A little guide",
+    "website_url": "example.com/ebook", "tags": "healing, ebook"}, follow_redirects=True)
+ok("Healing member creates a listing", "Listing saved" in r.get_data(as_text=True))
+with app.app_context():
+    hu = User.query.filter_by(email="rude@example.com").first()
+    hcount = MarketplaceListing.query.filter_by(user_id=hu.id, active=True).count()
+ok("Listing is live", hcount == 1)
+
+r = banclient.post("/marketplace/new", data={
+    "kind": "product", "title": "Second ebook", "website_url": "example.com/2"},
+    follow_redirects=True)
+with app.app_context():
+    hcount2 = MarketplaceListing.query.filter_by(
+        user_id=hu.id, active=True).count()
+ok("Healing plan caps at one active listing", hcount2 == 1)
+
+r = app.test_client().get("/marketplace")
+ok("Marketplace lists the item", "My ebook" in r.get_data(as_text=True))
+r = app.test_client().get("/marketplace?view=list")
+ok("Marketplace list view renders",
+   r.status_code == 200 and "market-list" in r.get_data(as_text=True))
+
+client.post("/marketplace/new", data={
+    "kind": "service", "title": "Coaching", "location": "Remote",
+    "website_url": "https://coach.example", "tags": "coaching"}, follow_redirects=True)
+client.post("/marketplace/new", data={
+    "kind": "service", "title": "Coaching 2",
+    "website_url": "https://coach2.example"}, follow_redirects=True)
+with app.app_context():
+    cu = User.query.filter_by(email="newperson@example.com").first()
+    ccount = MarketplaceListing.query.filter_by(user_id=cu.id, active=True).count()
+ok("Creator member has unlimited listings", ccount >= 2, f"got {ccount}")
+
+r = admin.get("/admin/marketplace")
+ok("Studio marketplace moderation lists items",
+   r.status_code == 200 and "My ebook" in r.get_data(as_text=True))
+
+banclient.post("/account/membership/cancel", follow_redirects=True)
+with app.app_context():
+    hu = User.query.filter_by(email="rude@example.com").first()
+    still_active = MarketplaceListing.query.filter_by(
+        user_id=hu.id, active=True).count()
+    tier = hu.membership
+ok("Cancelling membership drops the tier", tier == "none", f"got {tier}")
+ok("Cancelling hides the member's ads", still_active == 0)
+
+# Gifting a course to a friend's account
+r = free_client.get("/library/begin-again", follow_redirects=False)
+ok("Friend has no access before the gift", r.status_code == 404)
+with app.app_context():
+    Product.query.filter_by(slug="begin-again").first().ls_variant_id = "123456"
+    db.session.commit()
+gbody = json.dumps({
+    "meta": {"event_name": "order_created", "custom_data": {"gift_to": "free@example.com"}},
+    "data": {"id": "GIFT-1", "attributes": {
+        "user_email": "santa@example.com", "total": 4900, "currency": "USD",
+        "status": "paid", "first_order_item": {"variant_id": "123456"}}},
+}).encode()
+gs = hmac.new(b"test-secret", gbody, hashlib.sha256).hexdigest()
+r = client.post("/webhooks/lemonsqueezy", data=gbody,
+                headers={"Content-Type": "application/json", "X-Signature": gs})
+ok("Gift webhook accepted", r.status_code == 200)
+r = free_client.get("/library/begin-again")
+ok("Gifted friend can read the course online", r.status_code == 200)
+
+# Multiple announcements stack tidily on the home page
+admin.post("/admin/settings", data={"add_announcement": "1",
+           "ann_body": "First bloom of spring"}, follow_redirects=True)
+admin.post("/admin/settings", data={"add_announcement": "1",
+           "ann_body": "Second gentle note"}, follow_redirects=True)
+hbody = app.test_client().get("/").get_data(as_text=True)
+ok("Multiple announcements stack on the home page",
+   "First bloom of spring" in hbody and "Second gentle note" in hbody)
+
+# List / tile toggle for the forums
+r = client.get("/forums/c/healing?view=list")
+ok("Forum list view renders",
+   r.status_code == 200 and "post-list--list" in r.get_data(as_text=True))
+
 # --- 6. quote pinning + bulk import dedupe ----------------------------------------
 with app.app_context():
     pin_day = date.today() + timedelta(days=3)
