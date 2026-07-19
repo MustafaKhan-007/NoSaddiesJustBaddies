@@ -152,4 +152,22 @@
     boxes.forEach(function (b) { b.addEventListener("change", syncTags); });
     syncTags();
   }
+
+  /* ---- Showcase listing gallery: thumbnails swap the hero image ---- */
+  document.querySelectorAll("[data-listing-gallery]").forEach(function (gallery) {
+    var hero = gallery.querySelector("#listing-hero") ||
+               gallery.querySelector(".listing-detail__hero");
+    if (!hero) return;
+    gallery.querySelectorAll("[data-listing-thumb]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var src = btn.getAttribute("data-src");
+        if (!src) return;
+        hero.src = src;
+        gallery.querySelectorAll("[data-listing-thumb]").forEach(function (other) {
+          other.classList.toggle("is-active", other === btn);
+          other.setAttribute("aria-pressed", other === btn ? "true" : "false");
+        });
+      });
+    });
+  });
 })();

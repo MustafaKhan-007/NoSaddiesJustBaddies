@@ -874,6 +874,26 @@ r = app.test_client().get("/marketplace?view=list")
 ok("Showcase list view renders (legacy /marketplace URL)",
    r.status_code == 200 and "market-list" in r.get_data(as_text=True))
 
+# multi-image gallery on listing detail (CSP-safe thumbs, no inline onclick)
+from app.models import ListingImage
+with app.app_context():
+    ebook = MarketplaceListing.query.filter_by(title="My ebook").first()
+    while ebook and len(ebook.images) < 2:
+        ebook.images.append(ListingImage(
+            data=b"\xff\xd8\xff\xd9", mime="image/jpeg",
+            sort_order=len(ebook.images)))
+        db.session.commit()
+    detail_id = ebook.id
+r = app.test_client().get(f"/marketplace/l/{detail_id}")
+dbody = r.get_data(as_text=True)
+ok("Listing detail gallery uses CSP-safe thumb buttons",
+   r.status_code == 200 and "data-listing-gallery" in dbody
+   and "data-listing-thumb" in dbody and "onclick=" not in dbody)
+js = (Path(__file__).resolve().parents[1] / "app" / "static" / "js" / "main.js"
+      ).read_text(encoding="utf-8")
+ok("Listing gallery swap lives in main.js (not inline)",
+   "data-listing-gallery" in js and "data-listing-thumb" in js)
+
 # services require a location
 r = client.post("/marketplace/new", data={
     "kind": "service", "title": "Coaching (no loc)",

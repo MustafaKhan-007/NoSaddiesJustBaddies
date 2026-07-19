@@ -5,17 +5,22 @@
 {% block content %}
 <section class="section">
   <div class="container">
-    <p class="eyebrow"><a href="{{ url_for('main.marketplace', kind=listing.kind) }}">&larr; Back to marketplace</a></p>
+    <p class="eyebrow"><a href="{{ url_for('main.showcase', kind=listing.kind) }}">&larr; Back to Showcase</a></p>
     <div class="listing-detail">
-      <div class="listing-detail__media">
+      <div class="listing-detail__media" data-listing-gallery>
         {% if listing.images %}
         <img class="listing-detail__hero" id="listing-hero"
              src="{{ url_for('main.listing_image', image_id=listing.images[0].id) }}" alt="{{ listing.title }}">
         {% if listing.images|length > 1 %}
-        <div class="listing-thumbs">
+        <div class="listing-thumbs" role="list">
           {% for img in listing.images %}
-          <img src="{{ url_for('main.listing_image', image_id=img.id) }}" alt="" loading="lazy"
-               onclick="document.getElementById('listing-hero').src=this.src">
+          <button type="button" class="listing-thumbs__btn{% if loop.first %} is-active{% endif %}"
+                  data-listing-thumb
+                  data-src="{{ url_for('main.listing_image', image_id=img.id) }}"
+                  aria-label="Show image {{ loop.index }} of {{ listing.images|length }}"
+                  aria-pressed="{{ 'true' if loop.first else 'false' }}">
+            <img src="{{ url_for('main.listing_image', image_id=img.id) }}" alt="" loading="lazy">
+          </button>
           {% endfor %}
         </div>
         {% endif %}
