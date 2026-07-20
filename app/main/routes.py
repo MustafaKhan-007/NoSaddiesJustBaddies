@@ -33,7 +33,7 @@ from ..services.listings import (ListingError, can_add_listing, listing_limit,
 from ..services.social import (ALLOWED_LABELS, clean_social_links,
                                instagram_embed_url, instagram_handle,
                                instagram_profile_url)
-from ..services.videos import VideoError, process_video
+from ..services.videos import VideoError, process_video, process_video_bytes
 from . import bp
 
 log = logging.getLogger(__name__)
@@ -838,7 +838,7 @@ def videos():
     return render_template(
         "main/videos.html", videos=items, can_browse=can_browse, can_play=can_play,
         reviews=reviews, my_application=my_app, week_key=week_key,
-        max_mb=current_app.config.get("MAX_VIDEO_MB", 200),
+        max_mb=current_app.config.get("REEL_RAW_MAX_MB", 100),
     )
 
 
@@ -862,16 +862,17 @@ def reel_review_request():
     if not upload or not upload.filename:
         flash("Upload the raw video file for your reel too.", "error")
         return redirect(url_for("main.videos") + "#reviews")
+    # Store in the database so the owner can download after deploys
+    # (Render's local disk is wiped unless a persistent volume is attached).
+    max_bytes = current_app.config.get("REEL_RAW_MAX_MB", 100) * 1024 * 1024
     try:
-        disk_name, mime, fname, size = process_video(
-            upload, current_app.config["VIDEO_STORAGE_DIR"],
-            current_app.config["MAX_VIDEO_MB"] * 1024 * 1024)
+        mime, fname, size, data = process_video_bytes(upload, max_bytes)
     except VideoError as exc:
         flash(str(exc), "error")
         return redirect(url_for("main.videos") + "#reviews")
     app_row = ReelReviewApplication(
         user_id=current_user.id, week_key=week, reel_url=reel_url,
-        disk_name=disk_name, filename=fname, mime=mime, size=size)
+        data=data, filename=fname, mime=mime, size=size)
     db.session.add(app_row)
     db.session.commit()
     flash("You're in this week's reel-review draw. One applicant is chosen at random.",

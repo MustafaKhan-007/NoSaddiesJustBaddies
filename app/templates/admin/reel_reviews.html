@@ -33,7 +33,7 @@
           <a href="{{ a.reel_url }}" target="_blank" rel="noopener">Open reel</a>
           <span>{{ a.filename or 'No raw file' }}
             {% if a.size %}&middot; {{ (a.size / 1024 / 1024)|round(1) }} MB{% endif %}</span>
-          {% if a.disk_name %}
+          {% if a.has_raw_video() %}
           <a class="btn btn--{{ 'gold' if a.selected else 'secondary' }} btn--sm"
              href="{{ url_for('admin.reel_reviews_raw_download', app_id=a.id) }}">Download raw</a>
           {% endif %}

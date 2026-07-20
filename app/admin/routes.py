@@ -14,8 +14,8 @@ from datetime import date, datetime, timedelta
 from functools import wraps
 
 from flask import (Response, abort, current_app, flash, redirect,
-                   render_template, request, send_from_directory, session,
-                   stream_with_context, url_for)
+                   render_template, request, send_file, send_from_directory,
+                   session, stream_with_context, url_for)
 from flask_login import current_user
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
@@ -1103,28 +1103,39 @@ def reel_reviews_pick():
 def reel_reviews_raw_download(app_id):
     """Download the applicant's raw unedited video (Studio only)."""
     application = db.session.get(ReelReviewApplication, app_id) or abort(404)
-    disk_name = os.path.basename(application.disk_name or "")
-    if not disk_name:
-        flash("That entry has no raw video upload.", "error")
-        return redirect(url_for("admin.reel_reviews"))
-    directory = os.path.abspath(current_app.config["VIDEO_STORAGE_DIR"])
-    path = os.path.join(directory, disk_name)
-    if not os.path.isfile(path):
-        log.error("Reel raw video missing for application %s: %s", app_id, path)
-        flash("That raw video isn't on the server anymore. "
-              "Make sure VIDEO_STORAGE_DIR points at a persistent disk, "
-              "then ask them to re-enter the draw with a fresh upload.", "error")
-        return redirect(url_for("admin.reel_reviews"))
     name = application.filename or "raw-reel.mp4"
-    resp = send_from_directory(
-        directory, disk_name,
-        mimetype=application.mime or "application/octet-stream",
-        as_attachment=True,
-        download_name=name,
-        max_age=0,
-    )
-    resp.headers["Cache-Control"] = "private, no-store"
-    return resp
+    mime = application.mime or "application/octet-stream"
+
+    # Prefer DB bytes (survives deploys). Fall back to legacy on-disk files.
+    if application.data:
+        resp = send_file(
+            io.BytesIO(bytes(application.data)),
+            mimetype=mime,
+            as_attachment=True,
+            download_name=name,
+            max_age=0,
+        )
+        resp.headers["Cache-Control"] = "private, no-store"
+        return resp
+
+    disk_name = os.path.basename(application.disk_name or "")
+    if disk_name:
+        directory = os.path.abspath(current_app.config["VIDEO_STORAGE_DIR"])
+        path = os.path.join(directory, disk_name)
+        if os.path.isfile(path):
+            resp = send_from_directory(
+                directory, disk_name,
+                mimetype=mime,
+                as_attachment=True,
+                download_name=name,
+                max_age=0,
+            )
+            resp.headers["Cache-Control"] = "private, no-store"
+            return resp
+
+    flash("That entry has no raw video upload. Ask them to re-enter "
+          "this week's draw with a fresh file.", "error")
+    return redirect(url_for("admin.reel_reviews"))
 
 
 @bp.route("/reel-reviews/<int:app_id>/publish", methods=["POST"])
