@@ -1064,9 +1064,8 @@ ok("Admin orders page", r.status_code == 200)
 r = admin.get("/admin/subscribers/export.csv")
 ok("Subscriber CSV export", r.status_code == 200 and "fan@example.com" in r.get_data(as_text=True))
 
-# --- 7b. reel reviews, discounts, coaching, nav order ----------------------
-from app.models import CoachingRequest, DiscountCode, ReelReview, ReelReviewApplication
-from app.services.checkout import with_discount
+# --- 7b. reel reviews, coaching, nav order ---------------------------------
+from app.models import CoachingRequest, ReelReview, ReelReviewApplication
 from app.services import reel_reviews as reel_svc
 
 nav = client.get("/").get_data(as_text=True)
@@ -1083,20 +1082,8 @@ ok("Nav order is Courses, Community, Showcase, Content Hub, Quotes, My space",
    and i_courses < i_community < i_showcase < i_hub < i_quotes < i_space,
    f"idx={(i_courses, i_community, i_showcase, i_hub, i_quotes, i_space)}")
 
-ok("Discount helper appends Lemon checkout param",
-   "checkout%5Bdiscount_code%5D=BLOOM20" in with_discount(
-       "https://store.lemonsqueezy.com/buy/x", "BLOOM20")
-   or "checkout[discount_code]=BLOOM20" in with_discount(
-       "https://store.lemonsqueezy.com/buy/x", "BLOOM20"))
-
-r = admin.post("/admin/discounts", data={"code": "bloom20", "label": "20% off"},
-               follow_redirects=True)
-ok("Owner can save a discount code", "Discount code saved" in r.get_data(as_text=True))
-r = client.get("/membership")
-ok("Membership checkout carries the active discount code",
-   "checkout%5Bdiscount_code%5D=BLOOM20" in r.get_data(as_text=True)
-   or "checkout[discount_code]=BLOOM20" in r.get_data(as_text=True)
-   or "BLOOM20" in r.get_data(as_text=True))
+r = admin.get("/admin/discounts", follow_redirects=False)
+ok("Site discount-codes feature is removed", r.status_code == 404)
 
 # reel review: Creator can enter once/week; Healing cannot
 r = banclient.post("/watch/review-request", data={

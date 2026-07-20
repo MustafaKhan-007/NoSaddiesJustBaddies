@@ -20,12 +20,11 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import (Announcement, CoachingRequest, DiscountCode, FaqItem,
-                      ForumComment, ForumPost, MEMBERSHIPS, MarketplaceListing,
-                      MembershipPlan, Order, Page, Product, PRODUCT_SUBJECTS,
-                      ProductAsset, Quote, QuoteFavorite, QuotePin, ReelReview,
-                      ReelReviewApplication, Subscriber, Testimonial, User,
-                      Video, QUOTE_CATEGORIES)
+from ..models import (Announcement, CoachingRequest, FaqItem, ForumComment,
+                      ForumPost, MEMBERSHIPS, MarketplaceListing, MembershipPlan,
+                      Order, Page, Product, PRODUCT_SUBJECTS, ProductAsset, Quote,
+                      QuoteFavorite, QuotePin, ReelReview, ReelReviewApplication,
+                      Subscriber, Testimonial, User, Video, QUOTE_CATEGORIES)
 from ..services import badges as badges_service
 from ..services import quotes as quotes_service
 from ..services import reel_reviews as reel_svc
@@ -1142,48 +1141,6 @@ def reel_reviews_unpublish(review_id):
     db.session.commit()
     flash("Review hidden from the Content Hub.", "success")
     return redirect(url_for("admin.reel_reviews"))
-
-
-# ============================ DISCOUNT CODES =================================
-
-@bp.route("/discounts", methods=["GET", "POST"])
-@admin_required
-def discounts():
-    if request.method == "POST":
-        code = (request.form.get("code") or "").strip().upper()[:60]
-        label = (request.form.get("label") or "").strip()[:120]
-        if not code:
-            flash("Enter a discount code.", "error")
-        elif DiscountCode.query.filter_by(code=code).first():
-            flash("That code is already saved.", "error")
-        else:
-            db.session.add(DiscountCode(code=code, label=label or None, active=True))
-            db.session.commit()
-            flash("Discount code saved. Create the same code in Lemon Squeezy "
-                  "so checkout can apply it.", "success")
-        return redirect(url_for("admin.discounts"))
-    codes = DiscountCode.query.order_by(DiscountCode.created_at.desc()).all()
-    return render_template("admin/discounts.html", codes=codes)
-
-
-@bp.route("/discounts/<int:code_id>/toggle", methods=["POST"])
-@admin_required
-def discounts_toggle(code_id):
-    row = db.session.get(DiscountCode, code_id) or abort(404)
-    row.active = not row.active
-    db.session.commit()
-    flash("Code activated." if row.active else "Code deactivated.", "success")
-    return redirect(url_for("admin.discounts"))
-
-
-@bp.route("/discounts/<int:code_id>/delete", methods=["POST"])
-@admin_required
-def discounts_delete(code_id):
-    row = db.session.get(DiscountCode, code_id) or abort(404)
-    db.session.delete(row)
-    db.session.commit()
-    flash("Discount code removed.", "success")
-    return redirect(url_for("admin.discounts"))
 
 
 # =============================== COACHING ====================================

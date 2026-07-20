@@ -806,23 +806,6 @@ class ReelReview(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
 
 
-# --- discount codes ---------------------------------------------------------
-
-class DiscountCode(db.Model):
-    """A Lemon Squeezy discount code we surface on the site.
-
-    Checkout URLs get ``checkout[discount_code]=CODE`` appended. The code itself
-    must also exist in Lemon Squeezy — we only remember/advertise it here.
-    """
-    __tablename__ = "discount_codes"
-
-    id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(60), unique=True, nullable=False)
-    label = db.Column(db.String(120))          # e.g. "Spring 20%"
-    active = db.Column(db.Boolean, nullable=False, default=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
-
-
 # --- 1:1 coaching requests --------------------------------------------------
 
 class CoachingRequest(db.Model):

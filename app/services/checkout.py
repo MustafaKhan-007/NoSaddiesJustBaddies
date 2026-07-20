@@ -1,4 +1,4 @@
-"""Helpers for Lemon Squeezy checkout URLs (discount codes, custom fields)."""
+"""Helpers for Lemon Squeezy checkout URLs (custom fields, success redirect)."""
 from urllib.parse import quote, urlencode, urlparse, urlunparse, parse_qsl
 
 
@@ -13,14 +13,6 @@ def with_query(url: str, **params) -> str:
             continue
         query[key] = value
     return urlunparse(parts._replace(query=urlencode(query, quote_via=quote)))
-
-
-def with_discount(url: str, code: str | None) -> str:
-    """Attach ``checkout[discount_code]`` when a code is provided."""
-    code = (code or "").strip()
-    if not code:
-        return url
-    return with_query(url, **{"checkout[discount_code]": code})
 
 
 def with_custom(url: str, **custom) -> str:

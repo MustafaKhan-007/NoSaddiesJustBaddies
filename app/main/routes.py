@@ -13,7 +13,7 @@ from sqlalchemy import func
 
 from ..models import (MARKETPLACE_KINDS, MARKETPLACE_KIND_LABELS,
                       MARKETPLACE_TAG_MAX, MARKETPLACE_TAGS, PRODUCT_SUBJECTS,
-                      CoachingRequest, ContactMessage, DiscountCode, FaqItem,
+                      CoachingRequest, ContactMessage, FaqItem,
                       ListingImage, MarketplaceListing, MembershipPlan, Order,
                       Page, Product, ProductAsset, Quote, QuoteFavorite,
                       ReelReview, ReelReviewApplication, Subscriber,
@@ -24,7 +24,7 @@ from ..services import settings as settings_service
 from ..services.assets import docx_to_html
 from ..services.avatars import AvatarError, process_avatar
 from ..services.badges import CATEGORIES, category_progress, earned_badges
-from ..services.checkout import with_custom, with_discount, with_success_redirect
+from ..services.checkout import with_custom, with_success_redirect
 from ..services.journey import build_journey_pdf
 from ..services.mailer import send_contact_notification
 from ..services.recommend import INTENTS, recommend_products, valid_intent_keys
@@ -197,15 +197,9 @@ MEMBERSHIP_MATRIX = [
 ]
 
 
-def _active_discount_code():
-    row = (DiscountCode.query.filter_by(active=True)
-           .order_by(DiscountCode.created_at.desc()).first())
-    return row.code if row else None
-
-
-def _checkout_url(url, code=None):
-    """Apply discount + send buyers back to My space after Lemon checkout."""
-    out = with_discount(url or "", code if code is not None else _active_discount_code())
+def _checkout_url(url):
+    """Send buyers back to My space after Lemon checkout."""
+    out = url or ""
     try:
         success = url_for("main.account", _external=True)
         out = with_success_redirect(out, success)
@@ -219,15 +213,12 @@ def membership():
     plans = {p.tier: p for p in MembershipPlan.query.filter_by(active=True).all()}
     current = (current_user.effective_membership()
                if current_user.is_authenticated else None)
-    discount = DiscountCode.query.filter_by(active=True).order_by(
-        DiscountCode.created_at.desc()).first()
-    # decorate plan checkout URLs with the active discount code
     checkout = {}
     for tier, plan in plans.items():
         checkout[tier] = _checkout_url(plan.ls_checkout_url) if plan else None
     return render_template("main/membership.html", plans=plans,
                            matrix=MEMBERSHIP_MATRIX, current=current,
-                           discount=discount, checkout=checkout)
+                           checkout=checkout)
 
 
 # --- marketplace (member adverts; we redirect out, we don't sell) ----------
