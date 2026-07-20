@@ -24,7 +24,7 @@ from ..services import settings as settings_service
 from ..services.assets import docx_to_html
 from ..services.avatars import AvatarError, process_avatar
 from ..services.badges import CATEGORIES, category_progress, earned_badges
-from ..services.checkout import with_custom, with_discount
+from ..services.checkout import with_custom, with_discount, with_success_redirect
 from ..services.journey import build_journey_pdf
 from ..services.mailer import send_contact_notification
 from ..services.recommend import INTENTS, recommend_products, valid_intent_keys
@@ -204,8 +204,14 @@ def _active_discount_code():
 
 
 def _checkout_url(url, code=None):
-    """Apply the active (or given) discount code to a Lemon checkout URL."""
-    return with_discount(url or "", code if code is not None else _active_discount_code())
+    """Apply discount + send buyers back to My space after Lemon checkout."""
+    out = with_discount(url or "", code if code is not None else _active_discount_code())
+    try:
+        success = url_for("main.account", _external=True)
+        out = with_success_redirect(out, success)
+    except RuntimeError:
+        pass  # no request context (e.g. some tests)
+    return out
 
 
 @bp.route("/membership")
@@ -477,10 +483,11 @@ def product_detail(slug):
     testimonials = product.testimonials.order_by(Testimonial.sort_order).all()
     faqs = FaqItem.query.order_by(FaqItem.sort_order).limit(6).all()
     checkout_url = _checkout_url(product.ls_checkout_url) if product.ls_checkout_url else ""
+    already_owned = _owns_product(current_user, product) if current_user.is_authenticated else False
     return render_template("main/product_detail.html", product=product,
                            curriculum=curriculum, contents=contents,
                            related=related, testimonials=testimonials, faqs=faqs,
-                           checkout_url=checkout_url)
+                           checkout_url=checkout_url, already_owned=already_owned)
 
 
 @bp.route("/courses/<slug>/gift", methods=["POST"])
@@ -744,16 +751,15 @@ def _owns_product(user, product) -> bool:
 
 
 def _owned_products(user):
-    """Distinct products the user has bought (or been gifted) with readable files."""
+    """Distinct products the user has bought (or been gifted) — shown in My space."""
     if not user.is_authenticated:
         return []
     email = (user.email or "").lower()
-    products = (Product.query.join(Order, Order.product_id == Product.id)
-                .filter(Order.status == "paid",
-                        db.or_(func.lower(Order.buyer_email) == email,
-                               func.lower(Order.gift_to_email) == email))
-                .order_by(Product.title).distinct().all())
-    return [p for p in products if p.has_assets()]
+    return (Product.query.join(Order, Order.product_id == Product.id)
+            .filter(Order.status == "paid",
+                    db.or_(func.lower(Order.buyer_email) == email,
+                           func.lower(Order.gift_to_email) == email))
+            .order_by(Product.title).distinct().all())
 
 
 def is_premium(user) -> bool:

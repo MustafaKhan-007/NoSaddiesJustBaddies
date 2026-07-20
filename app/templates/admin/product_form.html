@@ -137,7 +137,11 @@
   </div>
 
   <div class="admin-panel">
-    <h2>Course files <span style="font-weight: 400; font-size: 13px; color: var(--ink-soft);">(read online by buyers &mdash; no download)</span></h2>
+    <h2>Course files <span style="font-weight: 400; font-size: 13px; color: var(--ink-soft);">(My space reader &mdash; no download)</span></h2>
+    <p class="field-help" style="margin-top: 0;">
+      After someone buys on Lemon Squeezy, this product is unlocked in their
+      <strong>My space</strong>. Upload the PDF / Word pages here so they can read them on the site.
+    </p>
     {% if product.assets %}
     <ul class="asset-list">
       {% for a in product.assets %}
@@ -156,14 +160,18 @@
       <input type="file" id="asset_files" name="asset_files" multiple
              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
       <p class="field-help">
-        Stored on the site and shown to buyers in an on-page reader (no download link).
-        <strong>PDF and .docx preview best</strong>; up to 25&nbsp;MB each. Files persist across deploys.
+        <strong>PDF and .docx work best</strong>; up to 25&nbsp;MB each. Stored in the database so they survive deploys.
+        Turn off Lemon's own file downloads if you only want people reading here.
       </p>
     </div>
   </div>
 
   <div class="admin-panel">
     <h2>Pricing &amp; Lemon Squeezy</h2>
+    <p class="field-help" style="margin-top: 0;">
+      Checkout opens as an overlay on your site (no redirect unless JavaScript is off).
+      You need <strong>both</strong> the buy link and the variant ID so sales appear in My space.
+    </p>
     <div class="form-row">
       <div class="field">
         <label for="price_cents">Price (in cents)</label>
@@ -188,12 +196,17 @@
       <label for="ls_checkout_url">Lemon Squeezy buy link</label>
       <input type="url" id="ls_checkout_url" name="ls_checkout_url" value="{{ product.ls_checkout_url or '' }}"
              placeholder="https://yourstore.lemonsqueezy.com/buy/...">
-      <p class="field-help">In Lemon Squeezy: open the product &rarr; <strong>Share</strong> &rarr; copy the <strong>Buy link / Checkout link</strong>. Required to publish.</p>
+      <p class="field-help">Lemon Squeezy &rarr; product &rarr; <strong>Share</strong> &rarr; copy the buy / checkout link. Required to publish.</p>
     </div>
     <div class="field">
       <label for="ls_variant_id">Lemon Squeezy variant ID</label>
-      <input type="text" id="ls_variant_id" name="ls_variant_id" value="{{ product.ls_variant_id or '' }}" placeholder="e.g. 123456">
-      <p class="field-help">In Lemon Squeezy: open the product &rarr; the <strong>Variants</strong> tab &rarr; the ID shown for the variant (also in the variant's URL). This is how sales get matched to this product on your dashboard.</p>
+      <input type="text" id="ls_variant_id" name="ls_variant_id" value="{{ product.ls_variant_id or '' }}" placeholder="e.g. 123456" required>
+      <p class="field-help">
+        Lemon Squeezy &rarr; product &rarr; <strong>Variants</strong> &rarr; copy the variant ID.
+        Required to publish &mdash; this is how a paid order unlocks the product in the buyer's My space.
+        Also set your Lemon webhook to <code>{{ request.url_root }}webhooks/lemonsqueezy</code>
+        with events <code>order_created</code> and <code>order_refunded</code>.
+      </p>
     </div>
   </div>
 

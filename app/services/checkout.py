@@ -27,3 +27,11 @@ def with_custom(url: str, **custom) -> str:
     """Attach Lemon ``checkout[custom][key]=value`` fields."""
     params = {f"checkout[custom][{k}]": v for k, v in custom.items() if v}
     return with_query(url, **params) if params else url
+
+
+def with_success_redirect(url: str, success_url: str | None) -> str:
+    """Send buyers back to My space after Lemon confirms payment."""
+    success_url = (success_url or "").strip()
+    if not url or not success_url:
+        return url
+    return with_query(url, **{"checkout[redirect_url]": success_url})

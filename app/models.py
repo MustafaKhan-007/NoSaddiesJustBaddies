@@ -311,15 +311,17 @@ class Product(db.Model):
             missing.append("a price")
         if not (self.ls_checkout_url or "").strip():
             missing.append("the Lemon Squeezy buy link")
+        # Without the variant ID, webhooks can't put the purchase into My space.
+        if not (self.ls_variant_id or "").strip():
+            missing.append("the Lemon Squeezy variant ID")
         return missing
 
 
 class ProductAsset(db.Model):
-    """A downloadable-but-not-downloaded course/guide file (PDF or Word).
+    """Course/guide file for on-site reading (not a public download).
 
     Stored in the database (like avatars) so files survive Render's ephemeral
-    disk. Served inline to buyers via an ownership-gated route; there is no
-    public download link.
+    disk. Served inline to buyers in My space via an ownership-gated route.
     """
     __tablename__ = "product_assets"
 

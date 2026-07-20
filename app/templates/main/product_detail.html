@@ -26,15 +26,23 @@
         {% if product.compare_at_cents %}from {% endif %}{{ product.price_display() }}
         {% if product.compare_at_cents %}<del>{{ product.compare_at_display() }}</del>{% endif %}
       </p>
+      {% if already_owned %}
+      <a class="btn btn--primary" href="{{ url_for('main.library_item', slug=product.slug) }}">Open in My space</a>
+      <p class="trust-line">This is already in your library &mdash; read it online anytime.</p>
+      {% elif checkout_url or product.ls_checkout_url %}
       <a href="{{ checkout_url or product.ls_checkout_url }}" class="btn btn--primary lemonsqueezy-button">Get {{ product.type_label().lower() }} now</a>
-      <p class="trust-line">Secure checkout &middot; Cards &amp; PayPal &middot; Instant delivery by email</p>
+      <p class="trust-line">Secure checkout opens on this page &middot; After payment it appears in <a href="{{ url_for('main.account') }}">My space</a> to read online (no download)</p>
+      {% else %}
+      <span class="btn btn--secondary is-disabled">Coming soon</span>
+      <p class="trust-line">Checkout isn't connected for this one yet.</p>
+      {% endif %}
 
-      {% if product.ls_checkout_url %}
+      {% if (checkout_url or product.ls_checkout_url) and not already_owned %}
       <details class="gift-box">
         <summary>&#127873; Gift this to a friend</summary>
         <form method="post" action="{{ url_for('main.gift_checkout', slug=product.slug) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <p class="field-help">Your friend needs a free account first. We'll add access to their space the moment your payment clears.</p>
+          <p class="field-help">Your friend needs a free account first (same email they'll use at checkout). We'll add it to their My space when payment clears.</p>
           <div class="gift-row">
             <input type="email" name="gift_email" placeholder="friend@example.com" required>
             <button class="btn btn--secondary btn--sm" type="submit">Gift &amp; checkout</button>

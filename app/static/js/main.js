@@ -153,6 +153,17 @@
     syncTags();
   }
 
+  /* ---- Lemon Squeezy overlay (re-init if lemon.js loaded after us) ---- */
+  if (window.createLemonSqueezy) {
+    window.createLemonSqueezy();
+  } else {
+    document.querySelectorAll("script[src*='lemon.js']").forEach(function (s) {
+      s.addEventListener("load", function () {
+        if (window.createLemonSqueezy) window.createLemonSqueezy();
+      });
+    });
+  }
+
   /* ---- Coaching fold: smooth expand on My space ---- */
   document.querySelectorAll("[data-coaching-toggle]").forEach(function (btn) {
     var panel = document.getElementById(btn.getAttribute("aria-controls"));

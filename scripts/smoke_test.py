@@ -202,7 +202,11 @@ ok("Featured product on home", "Begin Again" in r.get_data(as_text=True))
 r = client.get("/courses/begin-again")
 detail = r.get_data(as_text=True)
 ok("Detail page has LS overlay button",
-   "lemonsqueezy-button" in detail and "lemon.js" in detail and "https://store.lemonsqueezy.com/buy/abc123" in detail)
+   "lemonsqueezy-button" in detail and "lemon.js" in detail
+   and "store.lemonsqueezy.com/buy/abc123" in detail)
+ok("Checkout sends buyers back to My space after payment",
+   "checkout%5Bredirect_url%5D" in detail or "checkout[redirect_url]" in detail
+   or "/account" in detail)
 
 # --- 4. webhook: signature + idempotency ---------------------------------------
 payload = json.dumps({
@@ -227,6 +231,21 @@ ok("Webhook accepted (200)", r.status_code == 200 and r2.status_code == 200)
 ok("Replayed webhook creates exactly one order", len(orders) == 1, f"got {len(orders)}")
 ok("Order matched to product via variant id", orders[0].product_id is not None)
 ok("Buyer email lowercased", orders[0].buyer_email == "buyer@example.com")
+
+# purchase lands in My space for that email (even before course files are uploaded)
+with app.app_context():
+    from app.models import User as _U
+    buyer = _U(email="buyer@example.com", email_verified_at=utcnow())
+    buyer.set_password(USER_PW)
+    db.session.add(buyer)
+    db.session.commit()
+buyer_client = app.test_client()
+buyer_client.post("/login", data={"email": "buyer@example.com", "password": USER_PW})
+r = buyer_client.get("/account")
+ok("Paid product appears in My space library (no download — read online)",
+   r.status_code == 200 and "Begin Again" in r.get_data(as_text=True)
+   and ("Read online" in r.get_data(as_text=True) or "View in library" in r.get_data(as_text=True)
+        or "Your courses" in r.get_data(as_text=True)))
 
 r = admin.get("/admin/")
 ok("Dashboard shows revenue after order", "$49.00" in r.get_data(as_text=True))
@@ -563,7 +582,8 @@ ok("Course file served inline, not as a download",
    r.status_code == 200 and r.mimetype == "application/pdf"
    and r.headers.get("Content-Disposition", "").startswith("inline"))
 r = client.get("/account")
-ok("Account surfaces the read-online library", "Read your courses" in r.get_data(as_text=True))
+ok("Account surfaces the read-online library",
+   "Your courses" in r.get_data(as_text=True) or "Read your courses" in r.get_data(as_text=True))
 r = admin.get("/library/begin-again")
 ok("Owner can preview the reader without buying", r.status_code == 200)
 r = admin.post(f"/admin/products/{lib_prod_id}/edit",

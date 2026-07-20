@@ -115,8 +115,8 @@
 {% if library %}
 <section class="section section--band section--tight">
   <div class="container">
-    <h2>Read your courses &amp; guides</h2>
-    <p style="color: var(--ink-soft); margin-top: -6px;">Open any of these to read online, anytime.</p>
+    <h2>Your courses &amp; guides</h2>
+    <p style="color: var(--ink-soft); margin-top: -6px;">Purchases land here automatically &mdash; open them to read online anytime. Nothing to download.</p>
     <div class="grid grid--3" style="margin-top: 20px;">
       {% for product in library %}
       <div class="library-card">
@@ -125,7 +125,12 @@
         {% endif %}
         <span class="type-pill type-pill--{{ product.type }}">{{ product.type_label() }}</span>
         <h3>{{ product.title }}</h3>
+        {% if product.has_assets() %}
         <a class="btn btn--primary btn--sm" href="{{ url_for('main.library_item', slug=product.slug) }}">Read online</a>
+        {% else %}
+        <a class="btn btn--secondary btn--sm" href="{{ url_for('main.library_item', slug=product.slug) }}">View in library</a>
+        <p class="field-help" style="margin-top: 8px;">Reading pages are on the way.</p>
+        {% endif %}
       </div>
       {% endfor %}
     </div>

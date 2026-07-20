@@ -47,8 +47,11 @@ def lemonsqueezy():
         attrs = data.get("attributes") or {}
         first_item = attrs.get("first_order_item") or {}
         status = attrs.get("status") or ("refunded" if event == "order_refunded" else "paid")
-        custom = ((payload.get("meta") or {}).get("custom_data") or {})
-        gift_to = custom.get("gift_to") or None
+        # Lemon may put custom fields on meta and/or attributes
+        custom = {}
+        custom.update((payload.get("meta") or {}).get("custom_data") or {})
+        custom.update(attrs.get("custom_data") or {})
+        gift_to = custom.get("gift_to") or custom.get("giftTo") or None
 
         upsert_order(
             ls_order_id=data.get("id"),
