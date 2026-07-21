@@ -18,9 +18,17 @@ from flask import current_app
 log = logging.getLogger(__name__)
 
 
+def _strip_env_quotes(value: str) -> str:
+    """Render/dashboard pastes often wrap secrets in quotes — strip them."""
+    v = (value or "").strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        v = v[1:-1].strip()
+    return v
+
+
 def _brevo_api_key() -> str:
-    """Normalize the Brevo key (strip whitespace / accidental Bearer prefix)."""
-    key = (current_app.config.get("BREVO_API_KEY") or "").strip()
+    """Normalize the Brevo key (strip whitespace / quotes / Bearer prefix)."""
+    key = _strip_env_quotes(current_app.config.get("BREVO_API_KEY") or "")
     if key.lower().startswith("bearer "):
         key = key[7:].strip()
     return key
@@ -28,7 +36,7 @@ def _brevo_api_key() -> str:
 
 def _parse_from(mail_from: str) -> dict:
     """Split 'Name <addr@x.com>' into Brevo's {"name": ..., "email": ...}."""
-    mail_from = (mail_from or "").strip()
+    mail_from = _strip_env_quotes(mail_from or "")
     match = re.match(r"^\s*(.*?)\s*<([^>]+)>\s*$", mail_from)
     if match:
         name, email = match.groups()

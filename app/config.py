@@ -109,9 +109,18 @@ class ProdConfig(Config):
         def unset(name):
             return os.environ.get(name, "").strip() == ""
 
+        def strip_quotes(value: str) -> str:
+            v = (value or "").strip()
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+                v = v[1:-1].strip()
+            return v
+
         missing = [name for name in cls.REQUIRED_ENV if unset(name)]
         if unset("BREVO_API_KEY") and any(unset(name) for name in cls.SMTP_ENV):
             missing.append("BREVO_API_KEY or all of SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASSWORD")
+        mail_from = strip_quotes(os.environ.get("MAIL_FROM", ""))
+        if mail_from and ("@" not in mail_from or mail_from.lower().endswith("@localhost")):
+            missing.append("MAIL_FROM (must be a real verified sender, not @localhost)")
         if missing:
             raise RuntimeError(
                 "Refusing to start in production. Missing/placeholder env vars: "

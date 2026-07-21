@@ -50,6 +50,16 @@ def _safe_next(target: str | None) -> str:
     return url_for("main.account")
 
 
+def _active_code(user: User, purpose: str) -> VerificationCode | None:
+    """Return the newest still-usable code for this purpose, if any."""
+    row = (VerificationCode.query
+           .filter_by(user_id=user.id, purpose=purpose, used_at=None)
+           .order_by(VerificationCode.created_at.desc()).first())
+    if row is None or not row.is_usable():
+        return None
+    return row
+
+
 def _issue_code(user: User, purpose: str) -> bool:
     """Create a fresh code (invalidating older ones for the purpose) and email it.
 
@@ -78,7 +88,8 @@ EMAIL_TROUBLE = ("We couldn't send the email just now \u2014 the site's email se
 
 def _check_code(user: User, purpose: str, submitted: str) -> tuple[bool, str]:
     """Validate a submitted code. Returns (ok, error_message)."""
-    submitted = (submitted or "").strip().replace(" ", "")
+    # Digits only — paste from email may include spaces, dashes, or newlines.
+    submitted = re.sub(r"\D", "", submitted or "")
     row = (VerificationCode.query
            .filter_by(user_id=user.id, purpose=purpose, used_at=None)
            .order_by(VerificationCode.created_at.desc()).first())
@@ -86,7 +97,7 @@ def _check_code(user: User, purpose: str, submitted: str) -> tuple[bool, str]:
         return False, "That code has expired. Send yourself a fresh one below."
     if row.attempts >= VerificationCode.MAX_ATTEMPTS:
         return False, "Too many tries with that code. Send yourself a fresh one below."
-    if hashlib.sha256(submitted.encode()).hexdigest() != row.code_hash:
+    if len(submitted) != 6 or hashlib.sha256(submitted.encode()).hexdigest() != row.code_hash:
         row.attempts += 1
         db.session.commit()
         left = VerificationCode.MAX_ATTEMPTS - row.attempts
@@ -282,13 +293,22 @@ def login():
                                setup_available=_setup_available()), 401
 
     if not user.is_verified:
-        sent = _issue_code(user, "confirm")
+        # Keep any still-valid registration code. Re-issuing here used to
+        # invalidate the email people already had open, so the "wrong" code
+        # looked broken.
         session["pending_verify_email"] = user.email
         session["auth_next"] = next_path
-        if sent:
-            flash("Almost there \u2014 confirm your email first. We've sent you a fresh code.", "info")
+        if _active_code(user, "confirm"):
+            flash("Almost there \u2014 confirm your email first. Use the 6-digit "
+                  "code we already sent (check spam too). Need a new one? "
+                  "Tap \u201cSend a fresh code\u201d on the next page.", "info")
         else:
-            flash(EMAIL_TROUBLE, "error")
+            sent = _issue_code(user, "confirm")
+            if sent:
+                flash("Almost there \u2014 confirm your email first. "
+                      "We've sent you a 6-digit code.", "info")
+            else:
+                flash(EMAIL_TROUBLE, "error")
         return redirect(url_for("auth.verify_email"))
 
     _log_in(user)

@@ -111,20 +111,25 @@ r = client.post("/register", data={"email": "newperson@example.com", "password":
                 follow_redirects=False)
 ok("Registration redirects to verify page", r.status_code == 302 and "verify-email" in r.headers["Location"])
 ok("Confirmation code emailed", len(sent_codes) == 1 and sent_codes[0][2] == "confirm")
+first_code = sent_codes[0][1]
 
 # unverified account can't just log in — it gets sent back to verification
+# without wiping the code they already received
 r = client.post("/login", data={"email": "newperson@example.com", "password": USER_PW},
                 follow_redirects=False)
 ok("Unverified login redirects to verification", r.status_code == 302 and "verify-email" in r.headers["Location"])
+ok("Unverified login keeps the original confirmation code",
+   len(sent_codes) == 1)
 
 # wrong code fails with attempts feedback, right code confirms + logs in
 r = client.post("/verify-email", data={"email": "newperson@example.com", "code": "000000"})
 wrong_ok = r.status_code == 400 and "tries left" in r.get_data(as_text=True)
-real_code = sent_codes[-1][1]
-r = client.post("/verify-email", data={"email": "newperson@example.com", "code": real_code},
+r = client.post("/verify-email", data={"email": "newperson@example.com",
+                                       "code": f" {first_code[:3]}-{first_code[3:]} "},
                 follow_redirects=False)
 ok("Wrong code rejected with tries-left message", wrong_ok)
-ok("Correct code confirms and logs in", r.status_code == 302 and "/account" in r.headers["Location"])
+ok("Correct code confirms and logs in (spaces/dashes ok)",
+   r.status_code == 302 and "/account" in r.headers["Location"])
 r = client.get("/account")
 ok("Account page accessible after confirmation", r.status_code == 200)
 
@@ -1183,12 +1188,17 @@ ok("Content Hub lists video library above reel reviews",
    hub.find('id="videos"') < hub.find('id="reviews"')
    and hub.find("Video library") < hub.find("Reel reviews"))
 
-# Brevo helper strips Bearer / whitespace
+# Brevo helper strips Bearer / whitespace / wrapping quotes
 from app.services import mailer as mailer_mod
 with app.app_context():
     app.config["BREVO_API_KEY"] = "  Bearer  abc123  "
     cleaned = mailer_mod._brevo_api_key()
-ok("Brevo API key is normalized", cleaned == "abc123")
+    app.config["BREVO_API_KEY"] = '"xyz-key"'
+    quoted = mailer_mod._brevo_api_key()
+    sender = mailer_mod._parse_from('"Bloom Anyway <hello@example.com>"')
+ok("Brevo API key is normalized", cleaned == "abc123" and quoted == "xyz-key")
+ok("MAIL_FROM wrapping quotes are stripped",
+   sender.get("email") == "hello@example.com")
 
 # brand rename: leftover "First Light" becomes Bloom Anyway on boot
 from app.services.settings import ensure_brand_title, get_setting, invalidate_cache, set_setting
