@@ -4,6 +4,18 @@
 {% block content %}
 <h1>Settings</h1>
 
+<div class="admin-panel" style="margin-bottom: 24px;">
+  <h2 style="margin-top: 0;">Email delivery</h2>
+  <p class="field-help" style="margin-top: 0;">
+    Confirmation codes use Brevo. If sign-up emails fail, send a test to your owner inbox —
+    the error message will name the exact Brevo problem (wrong key, blocked IP, bad sender).
+  </p>
+  <form method="post" action="{{ url_for('admin.settings_test_email') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn--secondary btn--sm" type="submit">Send test email to me</button>
+  </form>
+</div>
+
 <form method="post">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="admin-panel">

@@ -1200,11 +1200,14 @@ with app.app_context():
     app.config["MAIL_FROM"] = "Bloom Anyway <hello@example.com>"
     smtp_key_blocked = mailer_mod._send_via_brevo("a@b.com", "t", "body") is False
     smtp_hint = mailer_mod.last_send_error()
+    ip_hint = mailer_mod._brevo_error_hint(401, '{"message":"not verified","code":"unauthorized"}')
 ok("Brevo API key is normalized", cleaned == "abc123" and quoted == "xyz-key")
 ok("MAIL_FROM wrapping quotes are stripped",
    sender.get("email") == "hello@example.com")
 ok("SMTP keys are rejected for the Brevo HTTP API",
    smtp_key_blocked and "SMTP key" in smtp_hint)
+ok("Brevo 401 hint explains IP blocking / Render lockout",
+   "Authorized IPs" in ip_hint and "Deactivate" in ip_hint)
 
 # brand rename: leftover "First Light" becomes Bloom Anyway on boot
 from app.services.settings import ensure_brand_title, get_setting, invalidate_cache, set_setting

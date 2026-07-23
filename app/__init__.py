@@ -66,9 +66,17 @@ def create_app(config_class=None):
     app = Flask(__name__)
     app.config.from_object(config_class or get_config())
 
+    # Prefer live process env for email secrets (Render dashboard updates +
+    # avoids stale class attributes from import order).
+    import os as _os
+    from .config import _strip_config_quotes as _sq
+    if _os.environ.get("BREVO_API_KEY", "").strip():
+        app.config["BREVO_API_KEY"] = _sq(_os.environ.get("BREVO_API_KEY", ""))
+    if _os.environ.get("MAIL_FROM", "").strip():
+        app.config["MAIL_FROM"] = _sq(_os.environ.get("MAIL_FROM", ""))
+
     # Resolve where uploaded videos live: a mounted persistent disk in
     # production (VIDEO_STORAGE_DIR), or the instance folder locally.
-    import os as _os
     video_dir = (app.config.get("VIDEO_STORAGE_DIR") or "").strip() \
         or _os.path.join(app.instance_path, "videos")
     app.config["VIDEO_STORAGE_DIR"] = video_dir
