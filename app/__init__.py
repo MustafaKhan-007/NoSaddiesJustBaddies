@@ -70,8 +70,8 @@ def create_app(config_class=None):
     # avoids stale class attributes from import order).
     import os as _os
     from .config import _strip_config_quotes as _sq
-    if _os.environ.get("BREVO_API_KEY", "").strip():
-        app.config["BREVO_API_KEY"] = _sq(_os.environ.get("BREVO_API_KEY", ""))
+    if _os.environ.get("RESEND_API_KEY", "").strip():
+        app.config["RESEND_API_KEY"] = _sq(_os.environ.get("RESEND_API_KEY", ""))
     if _os.environ.get("MAIL_FROM", "").strip():
         app.config["MAIL_FROM"] = _sq(_os.environ.get("MAIL_FROM", ""))
 

@@ -697,7 +697,7 @@ def orders_export():
 @bp.route("/settings/test-email", methods=["POST"])
 @admin_required
 def settings_test_email():
-    """Send a one-off test via the live Brevo/SMTP config (Studio only)."""
+    """Send a one-off test via the live Resend/SMTP config (Studio only)."""
     to = (current_user.email or "").strip()
     if not to:
         flash("Your owner account has no email address.", "error")
@@ -711,7 +711,7 @@ def settings_test_email():
     if ok:
         flash(f"Test email sent to {to}. Check inbox and spam.", "success")
     else:
-        hint = last_send_error() or "Unknown email error — check Render logs for Brevo."
+        hint = last_send_error() or "Unknown email error — check Render logs for Resend."
         flash(f"Test email failed. {hint}", "error")
     return redirect(url_for("admin.settings"))
 

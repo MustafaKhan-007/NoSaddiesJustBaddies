@@ -31,7 +31,7 @@ MIN_PASSWORD_LEN = 8
 
 
 def _email_trouble_flash() -> None:
-    """Flash a send failure, including the last Brevo/SMTP hint when available."""
+    """Flash a send failure, including the last Resend/SMTP hint when available."""
     hint = last_send_error()
     if hint:
         flash(f"We couldn't send the email just now. {hint}", "error")

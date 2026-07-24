@@ -82,8 +82,8 @@ See `.env.example` for the full annotated list. The set is deliberately tiny.
 In production only these are **required** (the app refuses to boot otherwise):
 
 - `DATABASE_URL` — the managed Postgres connection string.
-- `MAIL_FROM` — the verified "From" address for emails.
-- **one email transport** — either `BREVO_API_KEY` (HTTP API, works everywhere)
+- `MAIL_FROM` — the verified "From" address for emails (Resend-verified domain).
+- **one email transport** — either `RESEND_API_KEY` (HTTP API, works everywhere)
   or all four of `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`.
 
 Everything else is optional or auto-managed:
@@ -98,8 +98,8 @@ Everything else is optional or auto-managed:
 
 > **Render free tier note:** Render blocks outbound SMTP ports (25/465/587)
 > on free web services, so Gmail/any SMTP relay will time out there. Use
-> `BREVO_API_KEY` instead (free Brevo account, ~300 emails/day), or upgrade
-> the Render service to a paid instance to unblock SMTP.
+> `RESEND_API_KEY` instead (https://resend.com), or upgrade the Render
+> service to a paid instance to unblock SMTP.
 
 ---
 

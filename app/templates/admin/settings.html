@@ -7,8 +7,8 @@
 <div class="admin-panel" style="margin-bottom: 24px;">
   <h2 style="margin-top: 0;">Email delivery</h2>
   <p class="field-help" style="margin-top: 0;">
-    Confirmation codes use Brevo. If sign-up emails fail, send a test to your owner inbox —
-    the error message will name the exact Brevo problem (wrong key, blocked IP, bad sender).
+    Confirmation codes use Resend. If sign-up emails fail, send a test to your owner inbox —
+    the error message will name the exact problem (API key, unverified domain, bad sender).
   </p>
   <form method="post" action="{{ url_for('admin.settings_test_email') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

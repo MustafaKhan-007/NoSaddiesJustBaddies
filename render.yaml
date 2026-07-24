@@ -31,8 +31,8 @@ services:
         fromDatabase:
           name: first-light-db
           property: connectionString
-      # Email (required): Brevo HTTP API + the verified sender address.
-      - key: BREVO_API_KEY
+      # Email (required): Resend HTTP API + verified sender domain.
+      - key: RESEND_API_KEY
         sync: false
       - key: MAIL_FROM
         sync: false

@@ -61,9 +61,9 @@ class Config:
     PERMANENT_SESSION_LIFETIME = timedelta(days=30)
 
     # Email — two transports, first configured one wins:
-    # 1. BREVO_API_KEY: HTTP API (works on hosts that block SMTP, e.g. Render free tier)
-    # 2. SMTP_*: classic SMTP relay (Gmail, Resend, Postmark, any)
-    BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "").strip()
+    # 1. RESEND_API_KEY: HTTP API (works on hosts that block SMTP, e.g. Render)
+    # 2. SMTP_*: classic SMTP relay (optional fallback)
+    RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
     SMTP_HOST = os.environ.get("SMTP_HOST", "").strip()
     SMTP_PORT = int(os.environ.get("SMTP_PORT", "587") or 587)
     SMTP_USER = os.environ.get("SMTP_USER", "")
@@ -89,7 +89,7 @@ def _strip_config_quotes(value: str) -> str:
 
 
 # Normalize env pastes once at import (Render/dashboard often wrap in quotes).
-Config.BREVO_API_KEY = _strip_config_quotes(Config.BREVO_API_KEY)
+Config.RESEND_API_KEY = _strip_config_quotes(Config.RESEND_API_KEY)
 Config.MAIL_FROM = _strip_config_quotes(Config.MAIL_FROM)
 
 
@@ -128,8 +128,8 @@ class ProdConfig(Config):
             return v
 
         missing = [name for name in cls.REQUIRED_ENV if unset(name)]
-        if unset("BREVO_API_KEY") and any(unset(name) for name in cls.SMTP_ENV):
-            missing.append("BREVO_API_KEY or all of SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASSWORD")
+        if unset("RESEND_API_KEY") and any(unset(name) for name in cls.SMTP_ENV):
+            missing.append("RESEND_API_KEY or all of SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASSWORD")
         mail_from = strip_quotes(os.environ.get("MAIL_FROM", ""))
         if mail_from and ("@" not in mail_from or mail_from.lower().endswith("@localhost")):
             missing.append("MAIL_FROM (must be a real verified sender, not @localhost)")
